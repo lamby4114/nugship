@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NUGSHIP — Sink ships. Mine ORE. | Pitch deck (Solana Mobile CLOCK IN)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@font-face{font-family:"PS2P";src:url("fonts/PressStart2P-Regular.ttf") format("truetype");}
+@font-face{font-family:"VT";src:url("fonts/VT323-Regular.ttf") format("truetype");}
+:root{
+  --night:#141a33; --navy:#1d2650; --sea:#1f4e6e; --teal:#3f8fa3; --foam:#cfe8ee;
+  --dusk:#5b3a6e; --sunset:#f29f4b; --peach:#ffcf8a; --gold:#f5c542; --gold2:#b8862b;
+  --wood:#5a3a22; --wood2:#3b2414; --plank:#7a5232; --parch:#ead6a6; --ink:#2a1a0e;
+  --red:#c8423a; --green:#4f8a3c; --white:#fff6e3;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#0b0f20;}
+body{font-family:"VT",monospace;color:var(--white);}
+.deck{display:flex;flex-direction:column;align-items:center;gap:40px;padding:40px 0;}
+.slide{width:1920px;height:1080px;position:relative;overflow:hidden;flex:none;
+  background:linear-gradient(180deg,var(--night) 0%,var(--navy) 38%,var(--dusk) 62%,var(--sunset) 86%,var(--peach) 100%);
+  image-rendering:pixelated;}
+.slide::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.06) 0 3px,transparent 3px 6px);}
+.sea{position:absolute;left:0;right:0;bottom:0;height:150px;
+  background:repeating-linear-gradient(90deg,var(--sea) 0 46px,#245a7c 46px 52px,var(--sea) 52px 98px),var(--sea);
+  border-top:6px solid var(--teal);}
+.sea::before{content:"";position:absolute;left:0;right:0;top:18px;height:6px;
+  background:repeating-linear-gradient(90deg,var(--foam) 0 18px,transparent 18px 70px);opacity:.55}
+.deckwood{position:absolute;left:0;right:0;bottom:0;height:64px;background:
+  repeating-linear-gradient(90deg,var(--plank) 0 236px,var(--wood2) 236px 240px),var(--plank);
+  border-top:6px solid var(--wood2);}
+h1,h2,h3,.pix{font-family:"PS2P",monospace;font-weight:normal;letter-spacing:1px;}
+h2.title{position:absolute;left:96px;top:70px;font-size:52px;color:var(--gold);
+  text-shadow:6px 6px 0 var(--wood2);}
+.kicker{position:absolute;left:100px;top:40px;font-family:"PS2P";font-size:18px;color:var(--peach);opacity:.9}
+.num{position:absolute;right:60px;top:44px;font-family:"PS2P";font-size:16px;color:var(--peach);opacity:.75}
+.foot{position:absolute;left:96px;bottom:40px;font-size:30px;color:var(--white);z-index:3;opacity:.95}
+.board{background:var(--parch);color:var(--ink);border:8px solid var(--wood);
+  box-shadow:0 0 0 6px var(--wood2),12px 12px 0 6px rgba(0,0,0,.35);padding:28px 34px;}
+.board h3{font-size:24px;line-height:1.35;color:var(--wood);margin-bottom:16px}
+.board p,.board li{font-size:37px;line-height:1.08}
+.col{display:flex;flex-direction:column;gap:26px}
+.board.sm p,.board.sm li{font-size:32px}
+.board ul{list-style:none}
+.board li{padding-left:34px;position:relative;margin:6px 0}
+.board li::before{content:"";position:absolute;left:4px;top:13px;width:14px;height:14px;background:var(--gold2);box-shadow:3px 3px 0 var(--wood2)}
+.phone{border:10px solid var(--wood2);box-shadow:0 0 0 6px var(--gold2),14px 14px 0 6px rgba(0,0,0,.4);
+  background:#000;image-rendering:pixelated;display:block}
+.cap{font-family:"PS2P";font-size:13px;color:var(--white);text-align:center;margin-top:16px;text-shadow:3px 3px 0 #000}
+.tag{display:inline-block;font-family:"PS2P";font-size:13px;padding:6px 10px;background:var(--red);color:var(--white);box-shadow:3px 3px 0 var(--wood2)}
+.tag.gold{background:var(--gold);color:var(--ink)}
+.tag.green{background:var(--green)}
+.tag.blue{background:var(--sea)}
+.abs{position:absolute}
+.big{font-family:"PS2P";color:var(--gold);text-shadow:5px 5px 0 var(--wood2)}
+table.px{border-collapse:collapse;width:100%}
+table.px td,table.px th{border:4px solid var(--wood);padding:10px 14px;font-size:36px;text-align:left;vertical-align:top}
+table.px th{font-family:"PS2P";font-size:15px;background:var(--wood);color:var(--parch)}
+.proj{font-family:"PS2P";font-size:12px;color:var(--red)}
+.chip{display:inline-block;font-family:"PS2P";font-size:14px;color:var(--ink);background:var(--gold);padding:8px 12px;margin:4px 6px 4px 0;box-shadow:4px 4px 0 var(--wood2)}
+@media print{
+  @page{size:1920px 1080px;margin:0}
+  html,body{background:none}
+  .deck{display:block;padding:0;gap:0}
+  .slide{page-break-after:always;break-after:page}
+  .nav{display:none}
+}
+.nav{position:fixed;right:16px;bottom:12px;font-family:"PS2P";font-size:11px;color:#9aa;opacity:.7}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+<!-- 1 TITLE -->
+<section class="slide" id="s1">
+  <div class="sea"></div><div class="deckwood"></div>
+  <div class="abs" style="left:110px;top:150px;width:1050px">
+    <div class="pix" style="font-size:22px;color:var(--peach);margin-bottom:28px">SOLANA MOBILE · CLOCK IN HACKATHON</div>
+    <h1 class="big" style="font-size:132px;line-height:1">NUGSHIP</h1>
+    <div class="pix" style="font-size:34px;color:var(--white);margin-top:34px;text-shadow:4px 4px 0 var(--wood2)">SINK SHIPS. MINE ORE.</div>
+    <p style="font-size:40px;margin-top:40px;max-width:960px;line-height:1.1">A native Android PvP naval duel for the <b>Seeker</b>, where every turn is a live
+      <b style="color:var(--gold)">ORE</b> mining round and every cannon shot is an ORE deploy.</p>
+    <div style="margin-top:36px"><span class="chip">UNITY 6 · ANDROID APK</span><span class="chip">MWA + SEED VAULT</span><span class="chip">ORE v3 ON SOLANA</span></div>
+  </div>
+  <div class="abs" style="right:150px;top:70px"><img class="phone" src="img/title.png" style="height:860px"><div class="cap">APK ON SEEKER · TITLE (DEV BUILD)</div></div>
+  <div class="foot pix" style="font-size:15px;bottom:20px;left:110px;color:var(--white)">VITTORIO DIFUSCO · SOLO DEV</div>
+</section>
+
+<!-- 2 PROBLEM -->
+<section class="slide" id="s2">
+  <div class="kicker">THE PROBLEM</div><div class="num">02</div>
+  <h2 class="title">Mining is passive.</h2>
+  <div class="abs col" style="left:96px;top:200px;width:1030px"><div class="board" style="">
+    <h3>ORE IS ALREADY A GAME... THAT NOBODY PLAYS TOGETHER</h3>
+    <ul>
+      <li>ORE v3 runs a round about every minute: pick squares on a 5×5 grid, deploy SOL, one square wins.</li>
+      <li>Today you deploy, then you wait. No opponent, no story, no reason to watch the round land.</li>
+      <li>Mobile crypto apps chase “engagement” with points and quests; very few give you a rival.</li>
+      <li>On a phone, a popup per transaction kills any real-time game loop.</li>
+    </ul>
+  </div>
+  <div class="board" style="background:#d9c38e">
+    <h3>WHAT WE MEASURED (READ-ONLY, 14 MAINNET ROUNDS, OCT 7 2026)</h3>
+    <p>Round start-to-start: 289 slots (~77 s) · ~144–152 miners per round · ~10.3–10.8 SOL deployed per round, spread almost evenly over 25 squares.</p>
+  </div></div>
+  <div class="abs" style="right:150px;top:150px;text-align:center">
+    <div class="board" style="width:560px;height:560px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:22px;background:#2b5f80;border-color:var(--wood)">
+      <!-- 25 squares -->
+      <div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div>
+      <div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div>
+      <div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:var(--gold)"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div>
+      <div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div>
+      <div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div><div style="background:#3f8fa3"></div>
+    </div>
+    <div class="cap" style="font-size:15px">25 SQUARES. 1 WINS. ...ZZZ</div>
+  </div>
+  <div class="foot">Source: our read-only RPC sampling of ORE v3 (timing/FINDINGS.md). Not NUGSHIP metrics.</div>
+</section>
+
+<!-- 3 SOLUTION -->
+<section class="slide" id="s3">
+  <div class="kicker">THE SOLUTION</div><div class="num">03</div>
+  <h2 class="title">ORE rounds become a naval duel.</h2>
+  <div class="abs board" style="left:96px;top:190px;width:900px">
+    <h3>THE 5×5 ORE GRID IS THE BATTLEFIELD</h3>
+    <ul>
+      <li>Squares A1–E5 map 1:1 to ORE’s 25 squares.</li>
+      <li>Hide a fleet: galleon (3), sloop (2), raft (1). It’s sealed as <b>sha256(layout ‖ salt)</b>.</li>
+      <li>Salvo = ships still afloat (3→1), +1 bonus shot after a sink or a crit.</li>
+      <li>Both captains aim, then lock on the <b>same slot</b>. Each shot is an ORE deploy on that square.</li>
+      <li>The round settles: hits vs hidden fleets, then ORE’s winning square.</li>
+      <li>A splash can still land on the winning square and mine ORE.</li>
+    </ul>
+  </div>
+  <div class="abs" style="left:96px;top:930px;width:900px"><span class="tag gold" style="font-size:16px;padding:10px 14px">NO PLAYER-VS-PLAYER WAGERING</span><div style="height:16px"></div><span class="tag blue" style="font-size:16px;padding:10px 14px">YOU MINE WITH ORE, NOT AGAINST YOUR RIVAL</span></div>
+  <div class="abs" style="left:1070px;top:160px;text-align:center"><img class="phone" src="img/fleet.png" style="height:820px"><div class="cap">PLACE FLEET</div></div>
+  <div class="abs" style="left:1460px;top:150px;text-align:center"><img class="phone" src="img/battle.png" style="height:820px"><div class="cap">AIM &amp; FIRE (APK)</div></div>
+</section>
+
+<!-- 4 ONE TURN -->
+<section class="slide" id="s4">
+  <div class="kicker">ONE TURN = ONE ORE ROUND</div><div class="num">04</div>
+  <h2 class="title">~1 minute, four beats.</h2>
+  <div class="abs" style="left:96px;top:200px;width:1728px;display:grid;grid-template-columns:repeat(4,1fr);gap:28px">
+    <div class="board sm"><h3>1 · AIM</h3><p>Round opens (240-slot deploy window, ~64 s). Tap enemy tiles; the countdown runs on <b>slots</b>, not wall clock.</p></div>
+    <div class="board sm"><h3>2 · LOCK</h3><p>Both players’ targets lock at <b>end_slot − 20</b> (auto-fire). No peeking: the server only says how many squares the rival picked.</p></div>
+    <div class="board sm"><h3>3 · FIRE</h3><p>Session key sends <b>Checkpoint(prev) + Deploy(mask)</b> in one tx before end_slot. One approval per match.</p></div>
+    <div class="board sm"><h3>4 · REVEAL</h3><p>~48-slot intermission (~13 s), ORE resets, winning square = slot-hash mod 25. Your waters, then theirs.</p></div>
+  </div>
+  <div class="abs board" style="left:96px;top:640px;width:1080px">
+    <h3>EVERY SHOT HAS ONE OF FOUR OUTCOMES</h3>
+    <table class="px">
+      <tr><th></th><th>NOT ORE WINNER</th><th>ORE WINNING SQUARE</th></tr>
+      <tr><th>MISS</th><td>Splash</td><td>Splash + gold bubbles (ORE mined)</td></tr>
+      <tr><th>HIT</th><td>Explosion + fire</td><td><b style="color:var(--red)">CRITICAL HIT</b> · nugget burst · Nuggy dances</td></tr>
+    </table>
+    <p style="margin-top:12px">Motherlode (1 in 500 rounds) = <b>THE KRAKEN RISES</b>.</p>
+  </div>
+  <div class="abs" style="left:1260px;top:610px;text-align:center"><img class="phone" src="img/mock_crit.png" style="height:400px"><div class="cap">CRIT (MOCKUP)</div></div>
+  <div class="abs" style="left:1560px;top:610px;text-align:center"><img class="phone" src="img/mock_kraken.png" style="height:400px"><div class="cap">KRAKEN (MOCKUP)</div></div>
+</section>
+
+<!-- 5 WHY SEEKER -->
+<section class="slide" id="s5">
+  <div class="kicker">WHY SEEKER</div><div class="num">05</div>
+  <h2 class="title">Built for the phone in your hand.</h2>
+  <div class="abs" style="left:96px;top:200px;width:1150px;display:grid;grid-template-columns:1fr 1fr;gap:28px">
+    <div class="board"><h3>ONE APPROVAL PER MATCH</h3><p>Seed Vault approves once. That funds an ORE Automation budget with an in-app session key as executor, so there are no per-turn popups. Manual per-shot signing is the fallback.</p></div>
+    <div class="board"><h3>PORTRAIT-FIRST PIXEL ART</h3><p>240×534 logical canvas at exactly 5× = Seeker’s 1200×2670. One-thumb aiming, big FIRE button, haptics.</p></div>
+    <div class="board"><h3>MOBILE WALLET ADAPTER</h3><p>MWA via Solana.Unity-SDK for connect, Sign-In With Solana profile pairing, and signing.</p></div>
+    <div class="board"><h3>NATIVE, NOT A WRAPPER</h3><p>Unity 6000.3 · IL2CPP · ARM64 · minSdk 26. Runs on a Seeker today (dev build).</p></div>
+  </div>
+  <div class="abs" style="left:1340px;top:140px;text-align:center"><img class="phone" src="img/matchmaking.png" style="height:800px"><div class="cap">PVP 1V1 · QUICK MATCH / INVITE CODE</div></div>
+</section>
+
+<!-- 6 ORE DEPTH -->
+<section class="slide" id="s6">
+  <div class="kicker">ORE INTEGRATION</div><div class="num">06</div>
+  <h2 class="title">ORE is the game clock.</h2>
+  <div class="abs col" style="left:96px;top:200px;width:1100px"><div class="board" style="">
+    <ul>
+      <li><b>Every turn</b> is a live ORE v3 round (program oreV3EG1…ULvWv).</li>
+      <li><b>Every shot</b> is a real Deploy on that square, the same amount per square, bundled with Checkpoint of the prior round.</li>
+      <li><b>Crit</b> = hit on ORE’s winning square. <b>Kraken</b> = Motherlode.</li>
+      <li><b>ORE mined</b>, crits and Kraken sightings sit on the leaderboards next to wins.</li>
+      <li>ORE is the only on-chain product in the game. There is no in-game token, NFT or tradeable item.</li>
+    </ul>
+  </div>
+  <div class="board" style="background:#d9c38e">
+    <h3>WHAT A MATCH CAN DRIVE INTO ORE <span class="proj">[ARITHMETIC CEILING, NOT A METRIC]</span></h3>
+    <p>Up to 4 shots/turn (3 + bonus) × 15-turn cap = ≤60 square-deploys per player per match. At the default 0.005 SOL/shot, that’s ≤0.3 SOL per player per match. Two new ORE miners per duel.</p>
+  </div></div>
+  <div class="abs" style="left:1300px;top:160px;width:540px">
+    <div class="board" style="background:var(--wood);color:var(--parch);border-color:var(--wood2)">
+      <h3 style="color:var(--gold)">STATUS · HONEST</h3>
+      <p style="font-size:29px"><span class="tag green">WORKS</span> server follows live mainnet ORE rounds (read-only): real round IDs, slot clock, winning square.</p>
+      <p style="font-size:29px;margin-top:14px"><span class="tag green">WORKS</span> Deploy/Checkpoint/Automate builders, byte-checked vs mainnet fixtures (36/36 server tests pass).</p>
+      <p style="font-size:29px;margin-top:14px"><span class="tag">GATED</span> live deploys sit behind a hard compile-time gate (LIVE_ORE=false) until the owner approves a mainnet test.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 7 FAIRNESS -->
+<section class="slide" id="s7">
+  <div class="kicker">FAIRNESS &amp; TECH</div><div class="num">07</div>
+  <h2 class="title">Nobody can move their fleet.</h2>
+  <div class="abs col" style="left:96px;top:200px;width:820px"><div class="board" style="">
+    <h3>COMMIT → PLAY → REVEAL</h3>
+    <ul>
+      <li>Each phone seals its layout: sha256(layout[25] ‖ salt[32]), with a fresh salt per match.</li>
+      <li>Both commits are exchanged before turn 1.</li>
+      <li>At match end both layouts + salts are revealed and <b>verified on the phone</b>. A mismatch flags the match.</li>
+      <li>Shared test vector checked in both TypeScript and C# tests.</li>
+    </ul>
+  </div>
+  <div class="board" style="">
+    <h3>THE REFEREE READS THE CHAIN</h3>
+    <p>A shot only counts if that square has ≥ stake deployed in that round <b>and</b> was locked. The server reads the player’s ORE Miner PDA right after end_slot (DeployEvent logs as fallback). It never signs or sends a transaction.</p>
+  </div></div>
+  <div class="abs" style="left:990px;top:200px;width:840px">
+    <div class="board" style="padding:30px">
+      <h3>ARCHITECTURE</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;font-size:32px;line-height:1.05">
+        <div style="background:var(--sea);color:var(--white);padding:16px;border:5px solid var(--wood2)"><b class="pix" style="font-size:15px;color:var(--gold)">SEEKER · UNITY APK</b><br>game · fleet commit · session key<br>MWA ⇄ Seed Vault</div>
+        <div style="background:var(--dusk);color:var(--white);padding:16px;border:5px solid var(--wood2)"><b class="pix" style="font-size:15px;color:var(--gold)">SOLANA MAINNET</b><br>ORE v3 program<br>Board · Round · Miner PDAs</div>
+        <div style="grid-column:1/3;text-align:center;font-size:30px;color:var(--wood)">phone ⇄ server: wss JSON · phone → chain: Checkpoint + Deploy · server ← chain: read-only RPC</div>
+        <div style="grid-column:1/3;background:var(--wood);color:var(--parch);padding:16px;border:5px solid var(--wood2)"><b class="pix" style="font-size:15px;color:var(--gold)">NUGSHIP SERVER · NODE/TS · WS · SQLITE</b><br>matchmaking · Elo · commit-reveal referee · ORE round follower · leaderboards. Never signs.</div>
+      </div>
+    </div>
+    <div class="board" style="margin-top:22px;background:#d9c38e"><p>Simultaneous lock on the same slot · aims hidden until lock · reveal never leaks unsunk ship cells · 90 s reconnect grace · turn_void if ORE stalls.</p></div>
+  </div>
+</section>
+
+<!-- 8 STICKINESS -->
+<section class="slide" id="s8">
+  <div class="kicker">STICKINESS LOOP</div><div class="num">08</div>
+  <h2 class="title">A reason to come back every tide.</h2>
+  <div class="abs col" style="left:96px;top:190px;width:760px"><div class="board" style="">
+    <h3>THE LOOP</h3>
+    <ul>
+      <li><b>Daily Tide:</b> a date-seeded daily challenge.</li>
+      <li><b>Ranked 1v1</b> with Elo, plus invite codes to duel friends.</li>
+      <li><b>Leaderboards</b>, global + weekly: games, W/L, ratio, battles, Elo.</li>
+      <li><b>Captain’s log</b> writes up your first sink, crits and Kraken sightings.</li>
+      <li><b>Veteran marks:</b> ships that win keep their battle scars.</li>
+    </ul>
+  </div>
+  <div class="board" style="background:#d9c38e">
+    <h3>RANK UNLOCKS A FLEET (COSMETIC ONLY)</h3>
+    <p>Driftwood → Merchant Cog → Pirate Brig → Navy Frigate → Ironclad → Ghost Fleet → <b>Motherlode</b> (needs a Kraken sighting). Same hulls and hitboxes for everyone. XP is earned, never sold.</p>
+  </div></div>
+  <div class="abs" style="left:900px;top:170px;text-align:center"><img class="phone" src="img/fleets.png" style="height:560px;width:auto"><div class="cap">7 RANK FLEETS (ART)</div></div>
+  <div class="abs" style="left:1440px;top:170px;text-align:center"><img class="phone" src="img/leaderboard.png" style="height:800px"><div class="cap">CAPTAIN’S LOG (APK)</div></div>
+</section>
+
+<!-- 9 WORLD -->
+<section class="slide" id="s9">
+  <div class="kicker">THE WORLD</div><div class="num">09</div>
+  <h2 class="title">Captains, seas and a ship’s cat.</h2>
+  <div class="abs" style="left:96px;top:180px;text-align:center"><img class="phone" src="img/campaign.png" style="height:780px"><div class="cap">SOLO CAMPAIGN (APK)</div></div>
+  <div class="abs col" style="left:510px;top:180px;width:680px"><div class="board" style="">
+    <h3>5 AI CAPTAINS, 5 TACTICS</h3>
+    <ul>
+      <li>Barnacle: random hunter</li>
+      <li>Admiral Brine: checkerboard parity</li>
+      <li>Mad Molly: centre-biased</li>
+      <li>Ghost Captain: probability density</li>
+      <li>Kraken Cult (boss): +1 shot per volley</li>
+    </ul>
+  </div>
+  <div class="board" style="background:#d9c38e">
+    <h3>NUGGY, THE SHIP’S CAT</h3>
+    <p>Black cat, orange eyes, bandana with a gold ORE emblem. Cheers on hits, dances on crits, winces when you’re hit. A mascot only: no token, no ticker.</p>
+  </div></div>
+  <div class="abs" style="left:1230px;top:170px;text-align:center"><img class="phone" src="img/biomes.png" style="height:620px;width:auto"><div class="cap">6 BIOMES · DAY/NIGHT · WEATHER</div></div>
+  <div class="abs" style="left:1230px;top:870px;width:600px;font-size:28px">Original retro nautical chiptune score: title waltz, layered battle music that tenses as the lock nears, Kraken theme.</div>
+</section>
+
+<!-- 10 STATUS -->
+<section class="slide" id="s10">
+  <div class="kicker">WHERE WE ARE</div><div class="num">10</div>
+  <h2 class="title">Shipped vs. gated.</h2>
+  <div class="abs board" style="left:96px;top:200px;width:1180px">
+    <table class="px">
+      <tr><th>AREA</th><th>STATE</th></tr>
+      <tr><td>Native APK on Seeker</td><td><span class="tag green">WORKS</span> dev build runs on device</td></tr>
+      <tr><td>Server-driven matches (solo, quick match, invite codes)</td><td><span class="tag green">WORKS</span> local server; Fly.io deploy prepared, not yet live</td></tr>
+      <tr><td>Live ORE round clock + winning square</td><td><span class="tag green">WORKS</span> read-only mainnet RPC</td></tr>
+      <tr><td>Commit-reveal + on-chain referee</td><td><span class="tag green">WORKS</span> unit + end-to-end sim tests</td></tr>
+      <tr><td>MWA connect / profile creator</td><td><span class="tag green">WORKS</span> SIWS pairing built, switched off</td></tr>
+      <tr><td>Real ORE deploys from the phone</td><td><span class="tag">GATED</span> LIVE_ORE=false until the owner OKs a mainnet test</td></tr>
+    </table>
+  </div>
+  <div class="abs" style="left:1360px;top:150px;text-align:center"><img class="phone" src="img/results.png" style="height:800px"><div class="cap">RESULTS + FLEET VERIFY</div></div>
+  <div class="foot">We don’t quote user numbers: the game isn’t public yet. Everything above is checkable in the repo.</div>
+</section>
+
+<!-- 11 ROADMAP -->
+<section class="slide" id="s11">
+  <div class="kicker">ROADMAP</div><div class="num">11</div>
+  <h2 class="title">Charting the course.</h2>
+  <div class="abs" style="left:96px;top:210px;width:1728px;display:grid;grid-template-columns:repeat(4,1fr);gap:26px">
+    <div class="board"><h3>NOW · OCT 2026</h3><ul><li>Hackathon build</li><li>Hosted server (wss)</li><li>First live-ORE mainnet test round</li></ul></div>
+    <div class="board"><h3>NEXT · NOV 2026</h3><ul><li>Release-signed build</li><li>Solana dApp Store listing</li><li>Live ORE ranked, opt-in</li><li>Privacy policy + account deletion</li></ul></div>
+    <div class="board"><h3>THEN · Q1 2027 <span class="proj">[PLAN]</span></h3><ul><li>2v2 fleets</li><li>Guilds / crews</li><li>Seasons + weekly ladders</li></ul></div>
+    <div class="board"><h3>LATER <span class="proj">[PLAN]</span></h3><ul><li>Tournaments on ORE rounds</li><li>Spectator mode for Kraken rounds</li><li>More captains &amp; seas</li></ul></div>
+  </div>
+  <div class="abs board" style="left:96px;top:820px;width:1728px;background:#d9c38e">
+    <p>ORE stays the featured on-chain product throughout. If we win the ORE prize, we’ll agree milestones with ORE and post progress updates with real usage numbers as we hit them.</p>
+  </div>
+</section>
+
+<!-- 12 TEAM -->
+<section class="slide" id="s12">
+  <div class="sea"></div><div class="deckwood"></div>
+  <div class="kicker">TEAM</div><div class="num">12</div>
+  <h2 class="title">One captain. One cat.</h2>
+  <div class="abs board" style="left:96px;top:210px;width:1050px">
+    <h3>VITTORIO DIFUSCO · SOLO DEVELOPER</h3>
+    <ul>
+      <li>Design, Unity client, Node server, ORE integration, pixel art pipeline, chiptune score.</li>
+      <li>Independent: no VC or angel funding.</li>
+      <li>Repo: [GITHUB_URL] · Demo: [VIDEO_URL] · X: [X_HANDLE]</li>
+    </ul>
+  </div>
+  <div class="abs" style="left:96px;top:620px">
+    <div class="big" style="font-size:64px">SINK SHIPS.</div>
+    <div class="big" style="font-size:64px;margin-top:22px">MINE ORE.</div>
+  </div>
+  <div class="abs" style="right:150px;top:150px;text-align:center"><img class="phone" src="img/nuggy_pixel.png" style="width:570px;height:auto;background:#3a2c5a"><div class="cap">NUGGY SAYS THANKS</div></div>
+</section>
+
+</div>
+<script>
+// Fit-to-screen presenter: press F for single-slide mode, arrows to move.
+(function(){
+  const slides=[...document.querySelectorAll('.slide')]; let i=0, present=false;
+  function fit(){ if(!present){slides.forEach(s=>{s.style.display='';s.style.transform='';s.style.margin=''});document.body.style.overflow='';return;}
+    const k=Math.min(innerWidth/1920,innerHeight/1080);
+    slides.forEach((s,j)=>{s.style.display=j===i?'':'none';s.style.transform='scale('+k+')';s.style.transformOrigin='top left';});
+    document.getElementById('deck').style.padding='0';document.body.style.overflow='hidden';}
+  addEventListener('keydown',e=>{
+    if(e.key==='f'||e.key==='F'){present=!present;fit();return;}
+    if(!present)return;
+    if(['ArrowRight','PageDown',' '].includes(e.key))i=Math.min(i+1,slides.length-1);
+    if(['ArrowLeft','PageUp'].includes(e.key))i=Math.max(i-1,0);
+    fit();});
+  addEventListener('resize',fit);
+})();
+</script>
+</body>
+</html>

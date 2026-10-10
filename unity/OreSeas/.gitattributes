@@ -1,0 +1,10 @@
+* text=auto
+*.cs text eol=lf
+*.unity text eol=lf merge=unityyamlmerge
+*.prefab text eol=lf merge=unityyamlmerge
+*.asset text eol=lf merge=unityyamlmerge
+*.meta text eol=lf
+*.png binary
+*.ogg binary
+*.wav binary
+Tools/hooks/* text eol=lf

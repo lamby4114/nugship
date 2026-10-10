@@ -1,0 +1,23 @@
+{
+    "name": "OreSeas.Runtime",
+    "rootNamespace": "OreSeas",
+    "references": [
+        "com.solana.unity_sdk",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Universal.2D.Runtime",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        { "name": "com.solana.unity_sdk", "expression": "", "define": "ORESEAS_SOLANA" },
+        { "name": "com.unity.render-pipelines.universal", "expression": "", "define": "ORESEAS_URP" },
+        { "name": "com.unity.inputsystem", "expression": "", "define": "ORESEAS_INPUTSYSTEM" }
+    ],
+    "noEngineReferences": false
+}

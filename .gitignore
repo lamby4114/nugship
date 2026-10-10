@@ -1,0 +1,75 @@
+# Secrets / credentials
+.env
+.env.*
+*.keystore
+*.jks
+keystore.properties
+x_kit/.nuggyore_credentials
+**/secrets/
+**/*secret*
+
+# Local DBs / runtime
+server/data/
+server/sim-reports/
+*.db
+*.db-shm
+*.db-wal
+
+# Build / deps
+node_modules/
+server/dist/
+**/Library/
+**/*.csproj.user
+
+# Unity local / OS
+unity/**/[Ll]ibrary/
+unity/**/[Tt]emp/
+unity/**/[Oo]bj/
+unity/**/[Bb]uild/
+unity/**/[Bb]uilds/
+unity/**/[Ll]ogs/
+unity/**/[Uu]ser[Ss]ettings/
+.DS_Store
+Thumbs.db
+
+# Large local transfer / play dumps (keep audit_shots)
+xfer/
+push*.tar
+scripts_push.tar
+play*/**/showcase_src.tar
+
+# Scraped third-party JS (Align portal bundle; not ours)
+js/
+
+# Upstream clones (link from README; do not vendor)
+entropy/
+ore/
+starter/
+
+# Local scratch / transfer / play dumps
+play1/
+play2/
+play3/
+play4/
+xfer/
+server_push/
+unity_export/
+unity_tpl/
+compilecheck/
+shots/
+audio/
+js/
+reelm_ref/
+mockups/
+mockups_v2/
+*.tar
+*.tgz
+push*.tar
+server_bundle.tgz
+seeker_shot*.png
+bug_*.png
+preview_*.png
+apk_*.png
+HSw*.jpg
+cs_hashes_v.txt
+.venv/

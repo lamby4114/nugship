@@ -1,0 +1,8 @@
+<!-- IL2CPP managed stripping: keep the BCL bits the NUGSHIP online layer uses via reflection-free but stripping-sensitive paths. -->
+<linker>
+  <assembly fullname="System">
+    <namespace fullname="System.Net.WebSockets" preserve="all"/>
+  </assembly>
+  <assembly fullname="System.Net.WebSockets" preserve="all" ignoreIfMissing="1"/>
+  <assembly fullname="System.Net.WebSockets.Client" preserve="all" ignoreIfMissing="1"/>
+</linker>

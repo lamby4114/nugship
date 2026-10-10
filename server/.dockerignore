@@ -1,0 +1,15 @@
+# keep the build context tiny: only package*.json, tsconfig*.json, src/ and the entrypoint are used
+node_modules
+dist
+data
+sim-reports
+test
+scripts
+*.log
+*.md
+*.cmd
+.git
+.gitignore
+fly.toml
+.env
+.env.*

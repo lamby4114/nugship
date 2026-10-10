@@ -1,0 +1,34 @@
+{
+  "name": "ore-seas-server",
+  "version": "0.1.0",
+  "description": "ORE SEAS backend: matchmaking, referee, ORE round watcher, leaderboards (read-only on chain)",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "node dist/src/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "node --import tsx --test test/*.test.ts",
+    "fixtures": "tsx scripts/fetch-fixtures.ts",
+    "sim": "tsx src/sim/harness.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^20.19.43",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.99.0",
+    "better-sqlite3": "^11.10.0",
+    "bs58": "^5.0.0",
+    "tweetnacl": "^1.0.3",
+    "ws": "^8.22.0"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

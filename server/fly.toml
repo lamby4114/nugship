@@ -1,0 +1,68 @@
+# fly.toml for the NUGSHIP game server. Nothing here has been deployed. See DEPLOY.md for the exact steps.
+# "nugship-server" is a placeholder: app names are global on Fly; if it's taken, pick another and update the
+# Unity client URL (wss://<app>.fly.dev/ws) to match.
+app = "nugship-server"
+primary_region = "iad"          # Ashburn, VA: cheapest region ($2.19/mo for shared-cpu-1x 256MB)
+
+# SIGTERM -> server.shutdown(): stop matchmaking, send `server_restart`, close sockets with 1012, checkpoint SQLite.
+kill_signal = "SIGTERM"
+kill_timeout = 15               # seconds; app needs ~2-3 s (SHUTDOWN_GRACE_MS + socket close)
+swap_size_mb = 256              # safety net against OOM on a 256MB machine (node RSS is ~40-60MB idle)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8787"
+  DB_PATH = "/data/oreseas.db"
+  ROUND_SOURCE = "live"          # follow live mainnet ORE rounds (read-only)
+  REQUIRE_WALLET_PROOF = "true"  # wallets must SIWS-verify to play ranked with a wallet
+  # Hackathon demo: the Seeker build ships LIVE_ORE=false + SIWS_PAIRING=false, so nobody has a verified wallet.
+  # With "false" here, quick-match ranked is unusable for everyone. "true" lets walletless guests queue ranked
+  # (always fireMode "virtual": no deploys, nothing on chain). Flip to "false" once wallet sign-in ships. See DEPLOY.md.
+  ALLOW_GUEST_RANKED = "true"
+  ALLOW_WALLET_PAIRING = "false" # SIWS pairing stays off until Victor OKs it
+  SIWS_DOMAIN = "nugship-server.fly.dev"
+  ALLOWED_ORIGINS = "*"          # REST is public read-only data; the native app sends no Origin. Lock down if a website calls the API.
+  LOG_FORMAT = "json"
+  SHUTDOWN_GRACE_MS = "1500"
+  NODE_OPTIONS = "--max-old-space-size=160"
+  # RPC_URL / RPC_WS_URL are secrets (they may embed an API key): `fly secrets set RPC_URL=... RPC_WS_URL=...`
+  # Unset = public https://api.mainnet-beta.solana.com (rate limited).
+
+[http_service]
+  internal_port = 8787
+  force_https = true             # http:// -> https:// redirect; ws:// upgrades must use wss://
+  auto_stop_machines = "off"     # never stop: WebSocket matches + the ORE round follower must stay alive
+  auto_start_machines = true
+  min_machines_running = 1
+  [http_service.concurrency]
+    type = "connections"         # each player holds one long-lived WebSocket
+    soft_limit = 400
+    hard_limit = 500
+  [http_service.http_options]
+    idle_timeout = 600           # seconds; server also pings every 30 s and sends clock ticks every 3 s in matches
+
+  [[http_service.checks]]
+    grace_period = "20s"         # boot connects to Solana RPC before listening
+    interval = "15s"
+    timeout = "5s"
+    method = "GET"
+    path = "/health"
+    [http_service.checks.headers]
+      X-Forwarded-Proto = "https" # avoid a force_https redirect on the internal check
+
+[mounts]
+  source = "nugship_data"
+  destination = "/data"
+  initial_size = "1gb"
+  snapshot_retention = 5         # daily snapshots; first 10GB of snapshot storage per month is free
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[[restart]]
+  policy = "on-failure"         # uncaughtException exits 1 -> Fly restarts the machine
+  retries = 10

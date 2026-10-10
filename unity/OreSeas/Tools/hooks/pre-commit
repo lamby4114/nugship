@@ -1,0 +1,12 @@
+#!/bin/sh
+# Refuses commits that would add secrets to the Unity repo (the X/Twitter kit, credentials, signing keys, env files,
+# private keys / API secrets in text). Enable once per clone:  git config core.hooksPath Tools/hooks
+bad=$(git diff --cached --name-only --diff-filter=ACMR | grep -iE '(^|/)x_kit(/|$)|credential|(^|/)\.env($|\.)|\.keystore$|\.jks$|\.p12$|\.pem$|\.key$|id_rsa|secrets?\.json$|service-account')
+if [ -n "$bad" ]; then
+  echo "pre-commit: refusing secret-looking paths:"; echo "$bad"; exit 1
+fi
+if git diff --cached -U0 --diff-filter=ACMR -- . ':(exclude)Assets/OreSeas/Scripts/Editor/BuildScript.cs' ':(exclude)Tools/hooks' \
+   | grep -E '^\+' | grep -iqE 'BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY|consumer_secret|access_token_secret|bearer_token|api_secret'; then
+  echo "pre-commit: staged content looks like a private key / API secret (see Tools/hooks/pre-commit)"; exit 1
+fi
+exit 0

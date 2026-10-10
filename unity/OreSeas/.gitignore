@@ -1,0 +1,51 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Bb]uild/
+/[Bb]uilds/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+*.csproj
+*.sln
+*.slnx
+*.user
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.apk
+*.aab
+*.keystore
+*.jks
+crashlytics-build.properties
+.utmp/
+.vs/
+.idea/
+.vscode/
+# export pipeline scratch
+Tools/unity_export/node_modules/
+Tools/unity_export/export.html
+Tools/unity_export/audio.html
+Tools/unity_export/sprites_raw.json
+Tools/unity_export/atlas/
+Tools/unity_export/audio_wav/
+Tools/unity_export/audio_out/
+# secrets: never in this repo (X/Twitter kit, signing keys, env files, API credentials).
+# Enforced by Tools/hooks/pre-commit (git config core.hooksPath Tools/hooks) and BuildScript.SecretsScan.
+x_kit/
+**/x_kit/
+*credentials*
+.env
+.env.*
+*.p12
+*.pem
+*.key
+id_rsa*
+secrets.json
+*service-account*.json
