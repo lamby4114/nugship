@@ -16,7 +16,7 @@ namespace OreSeas.Screens
         /// <summary>$NUG (Nuggy) on Solana. Source: Dexscreener NUG/ORE Raydium CPMM pair DG8WFbep49tDTwr6sz4SYkSWaNCvzzyV9PKuyowRR4w9.
         /// Empty NUG_DEX_URL hides the buy button.</summary>
         public const string NUG_CA = "251DUme9Gjp34Pv3YWuHhPfoEmfhFXQe769FAtr8LuWj";
-        public const string NUG_DEX_URL = "https://dexscreener.com/solana/" + NUG_CA;
+        public const string NUG_DEX_URL = "https://dexscreener.com/solana/DG8WFbep49tDTwr6sz4SYkSWaNCvzzyV9PKuyowRR4w9";
         static int curLayer;
         static Transform openRoot;
         public static bool IsOpen => openRoot != null;
