@@ -174,7 +174,19 @@ namespace OreSeas.Screens
         }
 
         /// <summary>Sets the draft name (keyboard result, or the screenshot player) and runs the availability check.</summary>
-        public void SetName(string raw) { draftName = Profile.Normalize(raw); if (draftName.Length > 16) draftName = draftName.Substring(0, 16); Refresh(); Check(); }
+        // The pixel font is ASCII-only: fold accents (JOSÉ -> JOSE) and drop emoji/other symbols before display,
+        // so a keyboard entry can never render as '?' glyphs.
+        static string AsciiFold(string raw)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in (raw ?? "").Normalize(System.Text.NormalizationForm.FormD))
+            {
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.NonSpacingMark) continue;
+                if (c < 128 && (char.IsLetterOrDigit(c) || c == ' ' || c == '_' || c == '.' || c == '-')) sb.Append(c);
+            }
+            return sb.ToString();
+        }
+        public void SetName(string raw) { draftName = Profile.Normalize(AsciiFold(raw)); if (draftName.Length > 16) draftName = draftName.Substring(0, 16); Refresh(); Check(); }
 
         void Check()
         {

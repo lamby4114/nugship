@@ -11,6 +11,7 @@ namespace OreSeas
         public static bool Down, Held, Up;
         public static Vector2 Pos;
         public static bool BackPressed;
+        static bool pendingUp; // a press+release inside one frame: emit Down now, Up next frame
 
         // Desktop play-test harness only (-nugplay): synthetic single pointer in logical px, fed through the same
         // Down/Held/Up path as touch so buttons, boards and drags see exactly what a finger would produce.
@@ -19,6 +20,7 @@ namespace OreSeas
         public static void Poll()
         {
             Down = Up = false; BackPressed = false;
+            if (pendingUp) { pendingUp = false; Up = true; Held = false; return; }
             if (Synthetic)
             {
                 Pos = SynthPos; BackPressed = SynthBack; SynthBack = false;
@@ -27,10 +29,17 @@ namespace OreSeas
             }
             bool pressed = false; Vector2 sp = Vector2.zero; bool any = false;
 #if ORESEAS_INPUTSYSTEM
-            var ts = Touchscreen.current;
-            if (ts != null && ts.primaryTouch.press.isPressed) { pressed = true; sp = ts.primaryTouch.position.ReadValue(); any = true; }
-            else if (ts != null && ts.primaryTouch.press.wasReleasedThisFrame) { sp = ts.primaryTouch.position.ReadValue(); any = true; }
-            else if (Mouse.current != null) { pressed = Mouse.current.leftButton.isPressed; sp = Mouse.current.position.ReadValue(); any = true; }
+            if (!UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.enabled) UnityEngine.InputSystem.EnhancedTouch.EnhancedTouchSupport.Enable();
+            var at = UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches;
+            // EnhancedTouch buffers per event: a touch that begins and ends inside one frame is still reported as Began
+            // this frame and Ended the next, so quick taps (and adb 'input tap') are never lost.
+            if (at.Count > 0)
+            {
+                var t = at[0]; var ph = t.phase;
+                pressed = ph != UnityEngine.InputSystem.TouchPhase.Ended && ph != UnityEngine.InputSystem.TouchPhase.Canceled;
+                sp = t.screenPosition; any = true;
+            }
+            else if (Mouse.current != null && Touchscreen.current == null) { pressed = Mouse.current.leftButton.isPressed; sp = Mouse.current.position.ReadValue(); any = true; }
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) BackPressed = true;
 #else
             if (Input.touchCount > 0) { var t = Input.GetTouch(0); pressed = t.phase != TouchPhase.Ended && t.phase != TouchPhase.Canceled; sp = t.position; any = true; }

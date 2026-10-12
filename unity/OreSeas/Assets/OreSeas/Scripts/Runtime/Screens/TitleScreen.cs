@@ -130,6 +130,12 @@ namespace OreSeas.Screens
             RefreshWallet();
         }
 
-        public override void Back() { Application.Quit(); }
+        static float lastBack = -10f;
+        public override void Back()
+        {
+            // Android back on the title: ask before leaving (press again within 2 s to quit).
+            if (Time.unscaledTime - lastBack < 2f) { Application.Quit(); return; }
+            lastBack = Time.unscaledTime; GameApp.Toast("PRESS BACK AGAIN TO QUIT", 2f);
+        }
     }
 }

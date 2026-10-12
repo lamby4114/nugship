@@ -12,13 +12,18 @@ namespace OreSeas.Screens
     /// </summary>
     public static class HelpOverlay
     {
-        public const int CardCount = 9;
+        public const int CardCount = 10;
+        /// <summary>$NUG (Nuggy) on Solana. Source: Dexscreener NUG/ORE Raydium CPMM pair DG8WFbep49tDTwr6sz4SYkSWaNCvzzyV9PKuyowRR4w9.
+        /// Empty NUG_DEX_URL hides the buy button.</summary>
+        public const string NUG_CA = "251DUme9Gjp34Pv3YWuHhPfoEmfhFXQe769FAtr8LuWj";
+        public const string NUG_DEX_URL = "https://dexscreener.com/solana/" + NUG_CA;
+        static int curLayer;
         static Transform openRoot;
         public static bool IsOpen => openRoot != null;
         const int TextW = 196;
         static readonly Color32 Ink = Pal.MapD;
 
-        sealed class Card { public string title; public string body; public Action<Transform, int> art; }
+        sealed class Card { public string title; public string body; public Action<Transform, int> art; public Action<Transform, int> extra; }
 
         static readonly Card[] Cards =
         {
@@ -40,13 +45,15 @@ namespace OreSeas.Screens
                 body = "ORE is a mining game on Solana: every minute miners pick squares on a 5x5 grid and one square wins. NUGSHIP uses those public rounds as fair dice." },
             new Card { title = "NO WAGERING", art = ArtNoBet,
                 body = "No bets, no stakes, no SOL. Nothing is signed or spent in this build. Play for glory, rating and the leaderboard." },
+            new Card { title = "ABOUT NUGGY", art = ArtNuggy, extra = NuggyExtra,
+                body = "Nuggy is the ship's cat of the NUGSHIP fleet. He sniffs out ORE on every grid and dances after every hit." },
         };
 
         /// <summary>Opens above whatever is showing. page: starting card.</summary>
         public static Transform Open(int page = 0)
         {
             int prevLayer = UiButton.TopLayer, layer = prevLayer + 1, o = 500 + 100 * prevLayer;
-            UiButton.TopLayer = layer;
+            UiButton.TopLayer = layer; curLayer = layer;
             var root = Gfx.Node(GameApp.OverlayRoot, "Help");
             var dim = Gfx.Rect(root, 0, 0, Px.W, Px.H, Pal.Ink, o); dim.color = new Color(0.06f, 0.04f, 0.04f, 0.78f);
             UiButton.Create(root, 0, 0, Px.W, Px.H, null, layer, "blocker").sfx = null;
@@ -72,6 +79,7 @@ namespace OreSeas.Screens
                 c2.art(Gfx.Node(node, "art", 0, 18), o + 5);   // illustrations are authored for y 132..230; shifted below the ribbon
                 var lines = Lay.Wrap(c2.body, TextW);
                 for (int i = 0; i < lines.Count; i++) PixelText.Create(node, lines[i], 120, 268 + i * 12, TextStyle.Of(Ink, TextAlign.Center), o + 4, "line");
+                c2.extra?.Invoke(node, o + 6);
                 for (int i = 0; i < dots.Count; i++) dots[i].color = (Color)(i == p ? Pal.Red2 : Pal.Sand3);
                 pageText.Set((p + 1) + " / " + CardCount);
                 GameApp.Audio?.Sfx("tap");
@@ -207,6 +215,28 @@ namespace OreSeas.Screens
             Lay.SpriteTL(p, "nug_big", w.x + 1, w.y + 2, o + 3);
             Caption(p, "25 SQUARES - ONE WINS", 120, 206, o);
             Caption(p, "YOUR SHOTS DON'T MINE OR SPEND", 120, 220, o, Pal.Red1);
+        }
+
+        static void ArtNuggy(Transform p, int o)
+        {
+            // avatar portrait (left) + dancing action shot (right) with ORE nuggets, one centred group
+            Frame(p, 48, 134, 56, 56, o, Pal.Sand2);
+            Avatars.Draw(p, "a:nuggy", 50, 136, o + 2, 2);
+            Caption(p, "CAPTAIN CAT", 76, 196, o, Pal.Red1);
+            var nug = NuggyView.Create(p, "s085", 168, 164, o + 3); nug.Play(NuggyView.Pose.Dance, 99999f);
+            Lay.SpriteTL(p, "nug_big", 138, 180, o + 2); Lay.SpriteTL(p, "nug_big", 190, 176, o + 2); Lay.SpriteTL(p, "nug_big", 164, 192, o + 2);
+            Caption(p, "HIT! HIT! HIT!", 166, 206, o, Pal.Red1);
+            Caption(p, "SHIP'S CAT - ORE SNIFFER", 120, 222, o);
+        }
+
+        static void NuggyExtra(Transform p, int o)
+        {
+            PixelText.Create(p, "$NUG ON SOLANA", 120, 314, TextStyle.Of(Pal.Red1, TextAlign.Center), o, "nugTitle");
+            string ca = string.IsNullOrEmpty(NUG_CA) ? "CA COMING SOON" : NUG_CA;
+            if (PixelFont.Measure(ca) <= TextW) PixelText.Create(p, ca, 120, 328, TextStyle.Of(Pal.MapB, TextAlign.Center), o, "ca");
+            else { int h = ca.Length / 2; PixelText.Create(p, ca.Substring(0, h), 120, 326, TextStyle.Of(Pal.MapB, TextAlign.Center), o, "ca1"); PixelText.Create(p, ca.Substring(h), 120, 336, TextStyle.Of(Pal.MapB, TextAlign.Center), o, "ca2"); }
+            if (!string.IsNullOrEmpty(NUG_DEX_URL) && !string.IsNullOrEmpty(NUG_CA))
+                Ui.Small(p, 40, 350, 160, 26, "BUY ON DEXSCREENER", () => Application.OpenURL(NUG_DEX_URL), o, curLayer, "green");
         }
 
         static void ArtNoBet(Transform p, int o)
