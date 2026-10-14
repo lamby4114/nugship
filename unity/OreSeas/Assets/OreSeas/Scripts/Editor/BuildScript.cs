@@ -22,6 +22,11 @@ namespace OreSeas.EditorTools
         public const string ReleaseApkPath = "Builds/Nugship-release.apk";
         /// <summary>Scripting define for store builds: ServerConfig.DefaultServer becomes wss://nugship-server.fly.dev/ws.</summary>
         public const string ReleaseDefine = "NUGSHIP_RELEASE";
+        /// <summary>v1.1.0+: release builds compile live mining (player-signed ORE deploys). Set NUGSHIP_LIVE_ORE=0 to build without it.</summary>
+        public const string LiveDefine = "ORESEAS_LIVE_ORE";
+        /// <summary>dApp Store release identity for this build when NUGSHIP_VERSION_CODE / _NAME are not set.</summary>
+        public const int ReleaseVersionCode = 3;
+        public const string ReleaseVersionName = "1.1.0";
 
         [MenuItem("NUGSHIP/Configure Player Settings")]
         public static void Configure() => Configure(false);
@@ -76,20 +81,28 @@ namespace OreSeas.EditorTools
                                 && OreSeas.Net.J.Ints(parsed, "alreadyFired").Count == 2 && OreSeas.Net.J.Bool(parsed, "ok") && OreSeas.Net.J.Str(parsed, "s") == "a\"b");
             var msg = OreSeas.Net.Json.Serialize(OreSeas.Net.J.Msg("aim", "matchId", "m1", "squares", new System.Collections.Generic.List<int> { 3, 4 }, "fireNow", false));
             Check("json write", msg == "{\"t\":\"aim\",\"matchId\":\"m1\",\"squares\":[3,4],\"fireNow\":false}");
-#pragma warning disable CS0162
-            Check("LIVE_ORE hard gate is OFF", !OreSeas.Net.ServerConfig.LIVE_ORE);
-#pragma warning restore CS0162
 #if ORESEAS_LIVE_ORE
-            Check("ORESEAS_LIVE_ORE define must not be set", false);
+            Check("LIVE_ORE on with the ORESEAS_LIVE_ORE define", OreSeas.Net.ServerConfig.LIVE_ORE && OreSeas.Net.ServerConfig.SIWS_PAIRING);
+#else
+            Check("LIVE_ORE off without the ORESEAS_LIVE_ORE define (editor/dev default)", !OreSeas.Net.ServerConfig.LIVE_ORE);
+#endif
+            Check("live mining is opt-in (default OFF until the consent sheet)", UnityEngine.PlayerPrefs.GetInt("os.livemining", 0) == 0 || OreSeas.Settings.LiveConsent);
+            Check("MWA identity is the listed website (https)", OreSeas.Net.ServerConfig.DappIdentityUri == "https://lamby4114.github.io/nugship/");
+#if ORESEAS_SOLANA && ORESEAS_LIVE_ORE
+            Check("LiveTx caps: per-square ceiling, match cap, balance", OreSeas.Ore.Chain.LiveTx.Validate(20_000_000, 1, 0, 1_000_000_000, 10_000_000_000) != null
+                && OreSeas.Ore.Chain.LiveTx.Validate(1_000_000, 7, 48_000_000, 50_000_000, 1_000_000_000) == "MATCH SPEND CAP REACHED"
+                && OreSeas.Ore.Chain.LiveTx.Validate(1_000_000, 7, 0, 50_000_000, 1_000_000_000) == null);
 #endif
             Check("http base from ws url", OreSeas.Net.ServerConfig.HttpBase.StartsWith("http"));
             Check("release server is TLS (wss://), dev default is the adb-reverse PC", OreSeas.Net.ServerConfig.ReleaseServer.StartsWith("wss://") && OreSeas.Net.ServerConfig.DevServer == "ws://127.0.0.1:8787/ws");
             Check("no secrets in the project (x_kit / credentials / keys)", SecretsScan(out var leak) || Fail(leak));
+#if !ORESEAS_LIVE_ORE
 #pragma warning disable CS0162
-            Check("SIWS wallet pairing gate is OFF", !OreSeas.Net.ServerConfig.SIWS_PAIRING);
+            Check("SIWS wallet pairing gate is OFF (non-live build)", !OreSeas.Net.ServerConfig.SIWS_PAIRING);
 #pragma warning restore CS0162
             bool pairRefused = false; OreSeas.Services.Profile.PairWallet((ok, why) => pairRefused = !ok && why.Contains("OFF"));
             Check("SIWS pairing refuses while gated", pairRefused);
+#endif
             Check("centring parity rule (every string, whole + half anchors, x1 + x2)", OreSeas.CenterAudit.ParitySelfTest(out var pfail) || Fail(pfail));
             // name rules mirror server/src/profile/profile.ts
             string V(string n) => OreSeas.Services.Profile.Validate(OreSeas.Services.Profile.Normalize(n));
@@ -182,8 +195,11 @@ namespace OreSeas.EditorTools
             if (Path.GetFullPath(ks).StartsWith(Path.GetFullPath("."), StringComparison.OrdinalIgnoreCase)) { Debug.LogError("[OreSeas] RELEASE BUILD REFUSED: keystore must live outside the Unity project"); if (Application.isBatchMode) EditorApplication.Exit(3); return; }
             if (!SecretsScan(out var leak)) { Debug.LogError("[OreSeas] RELEASE BUILD REFUSED: secret in project: " + leak); if (Application.isBatchMode) EditorApplication.Exit(4); return; }
             Configure(true);
-            if (int.TryParse(Environment.GetEnvironmentVariable("NUGSHIP_VERSION_CODE"), out var vc) && vc > 0) PlayerSettings.Android.bundleVersionCode = vc;
-            var vn = Environment.GetEnvironmentVariable("NUGSHIP_VERSION_NAME"); if (!string.IsNullOrEmpty(vn)) PlayerSettings.bundleVersion = vn;
+            PlayerSettings.Android.bundleVersionCode = int.TryParse(Environment.GetEnvironmentVariable("NUGSHIP_VERSION_CODE"), out var vc) && vc > 0 ? vc : ReleaseVersionCode;
+            var vn = Environment.GetEnvironmentVariable("NUGSHIP_VERSION_NAME"); PlayerSettings.bundleVersion = string.IsNullOrEmpty(vn) ? ReleaseVersionName : vn;
+            if (PlayerSettings.Android.bundleVersionCode <= 2) { Debug.LogError("[OreSeas] RELEASE BUILD REFUSED: versionCode must be > 2 (1.0.0 shipped as 2)"); if (Application.isBatchMode) EditorApplication.Exit(5); return; }
+            bool live = Environment.GetEnvironmentVariable("NUGSHIP_LIVE_ORE") != "0";
+            Debug.Log("[OreSeas] release " + PlayerSettings.bundleVersion + " (" + PlayerSettings.Android.bundleVersionCode + ") live mining compiled in: " + live);
             if (EditorUserBuildSettings.activeBuildTarget != BuildTarget.Android)
                 EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
             EditorUserBuildSettings.buildAppBundle = false;   // the dApp Store takes an APK
@@ -198,7 +214,7 @@ namespace OreSeas.EditorTools
                 report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
                 {
                     scenes = new[] { MainScene }, locationPathName = ReleaseApkPath, target = BuildTarget.Android, targetGroup = BuildTargetGroup.Android,
-                    options = BuildOptions.None, extraScriptingDefines = new[] { ReleaseDefine }
+                    options = BuildOptions.None, extraScriptingDefines = live ? new[] { ReleaseDefine, LiveDefine } : new[] { ReleaseDefine }
                 });
             }
             finally
