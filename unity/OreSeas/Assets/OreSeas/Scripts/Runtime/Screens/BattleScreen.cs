@@ -184,7 +184,7 @@ namespace OreSeas.Screens
             for (int i = 0; i < shotPips.Length; i++) shotPips[i] = Gfx.Sprite(deckAim, "shot_loaded", 17 + i * 13, y + 20, 153);
             bonusLabel = PixelText.Create(deckAim, "+1", 0, y + 16, TextStyle.Of(Pal.Gold3), 153);
             Gfx.Sprite(deckAim, "pouch", 104, y + 8, 153);
-            bool staked = !solo && Net.ServerConfig.LIVE_ORE;   // LIVE_ORE off: the SIM rival duel is free too, no pretend SOL
+            bool staked = false;   // offline SIM rival is always free (live SOL only in server matches the player signs)
             stakeA = PixelText.Create(deckAim, staked ? Settings.Stake.ToString("0.000") : "FREE", 123, y + 6, TextStyle.Of(Pal.Gold4), 153);
             stakeB = PixelText.Create(deckAim, staked ? "SOL SIM" : "NO STAKE", 123, y + 16, TextStyle.Of(Pal.Sand2), 153);
             lever = Gfx.Sprite(deckAim, Settings.AutoFire ? "lever_on" : "lever_off", 177, y + 9, 153);
@@ -497,9 +497,7 @@ namespace OreSeas.Screens
         string[] ReportRow(ShotResult s)
         {
             string desc = MatchState.Describe(s);
-            string val;
-            if (solo || !Net.ServerConfig.LIVE_ORE) val = s.oreSquare ? "+" + s.ore.ToString("0.0000") + " ORE" : s.hit ? "BOOM" : "SPLASH";
-            else val = s.oreSquare ? "+" + s.ore.ToString("0.0000") + " ORE" : "-" + (match.stake - s.solBack).ToString("0.0000") + " SOL";
+            string val = s.oreSquare ? "+" + s.ore.ToString("0.0000") + " ORE" : s.hit ? "BOOM" : "SPLASH";   // offline SIM: never SOL
             return new[] { s.Name, desc, val, s.oreSquare || s.hit ? "g" : "r" };
         }
 

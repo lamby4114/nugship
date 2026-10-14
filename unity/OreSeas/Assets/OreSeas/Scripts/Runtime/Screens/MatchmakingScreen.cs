@@ -10,7 +10,7 @@ namespace OreSeas.Screens
 {
     /// <summary>
     /// 1v1 PvP via the NUGSHIP server: QUICK MATCH (Elo queue) or a private INVITE CODE (host / join).
-    /// While LIVE_ORE=false every match is off-chain ("virtual" shots on live ORE rounds, no wallet, no SOL).
+    /// Unless the player opted in to live mining, every match is off-chain ("virtual" shots on live ORE rounds, no wallet, no SOL).
     /// Server unreachable -> honest OFFLINE + the clearly labelled SIM rival (local AI on a simulated / live-read ORE clock).
     /// </summary>
     public sealed class MatchmakingScreen : ScreenBase
@@ -42,8 +42,8 @@ namespace OreSeas.Screens
             main = Ui.Big(r, 8, 404, 224, 60, "QUICK MATCH", 2, "RANKED ELO - OFF-CHAIN", "cannon", OnMain, 70);
             inviteB = Ui.Plank(r, 8, 476, 108, 20, "INVITE CODE", "icon_trophy", HostCode, 70);
             joinB = Ui.Plank(r, 124, 476, 108, 20, "JOIN CODE", null, JoinCode, 70);
-            // no STAKE plank while LIVE_ORE is off -> HARBOR/CANCEL sits centred instead of leaving a hole on the right
-            cancelB = Ui.Plank(r, ServerConfig.LIVE_ORE ? 8 : 66, 502, 108, 20, "HARBOR", null, Back, 70);
+            // no STAKE plank unless live mining is on -> HARBOR/CANCEL sits centred instead of leaving a hole on the right
+            cancelB = Ui.Plank(r, Services.LiveMining.Active ? 8 : 66, 502, 108, 20, "HARBOR", null, Back, 70);
             stakeB = Ui.Plank(r, 124, 502, 108, 20, "STAKE", "pouch", CycleStake, 70);
             RefreshStake();
             Net.Message += OnMessage; Net.MatchFound += OnFound;
@@ -62,14 +62,14 @@ namespace OreSeas.Screens
             codeText.Set(s == St.Hosting && hostCode != null ? hostCode : "");
             if (s == St.Hosting && hostCode != null) wheel.gameObject.SetActive(false);
             inviteB.SetVisible(online); joinB.SetVisible(online);
-            stakeB.SetVisible((s == St.Menu || s == St.Offline) && ServerConfig.LIVE_ORE);   // no stakes while LIVE_ORE is off
+            stakeB.SetVisible((s == St.Menu || s == St.Offline) && Services.LiveMining.Active);   // stakes only with live mining on
             cancelB.SetLabel(s == St.Queued || s == St.Hosting || s == St.Joining ? "CANCEL" : "HARBOR");
             switch (s)
             {
                 case St.Connecting: Say("CONNECTING TO THE NUGSHIP SERVER...", Pal.Red1, "", ""); main.SetVisible(false); break;
                 case St.Menu:
                     Say("SERVER ONLINE - RATING " + Net.Rating, Pal.Grass4, "Quick match pairs you by Elo.", "Or share a 6-letter invite code.");
-                    main.SetVisible(true); main.SetLabel("QUICK MATCH"); main.SetSub(ServerConfig.LIVE_ORE ? "RANKED ELO" : "RANKED ELO - OFF-CHAIN"); main.SetEnabled(true);
+                    main.SetVisible(true); main.SetLabel("QUICK MATCH"); main.SetSub(Services.LiveMining.Active ? "RANKED ELO - LIVE SOL" : "RANKED ELO - OFF-CHAIN"); main.SetEnabled(true);
                     break;
                 case St.Queued: Say("SEARCHING THE SEAS...", Pal.Red1, "Both captains fire every ORE round.", "Fleets sealed by hash, revealed at the end."); main.SetVisible(false); break;
                 case St.Hosting: Say(hostCode == null ? "CREATING INVITE..." : "SHARE THIS CODE - WAITING", Pal.Red1, "Your rival taps JOIN CODE and types it.", "Code expires in 10 minutes."); main.SetVisible(false); break;
@@ -85,7 +85,7 @@ namespace OreSeas.Screens
 
         void Say(string s, Color32 c, string a, string b) { status.Set(s); status.SetColor(c); line1.Set(a); line2.Set(b); }
 
-        void RefreshStake() => stakeText.Set(ServerConfig.LIVE_ORE ? "STAKE " + Settings.Stake.ToString("0.000") + " SOL/SHOT" : "NO STAKES - NOTHING ON CHAIN");
+        void RefreshStake() => stakeText.Set(Services.LiveMining.Active ? "STAKE " + Settings.Stake.ToString("0.000") + " SOL/SQUARE" : "NO STAKES - NOTHING ON CHAIN");
         void CycleStake() { Settings.StakeIndex = (Settings.StakeIndex + 1) % Settings.Stakes.Length; RefreshStake(); }
 
         void OnMain()

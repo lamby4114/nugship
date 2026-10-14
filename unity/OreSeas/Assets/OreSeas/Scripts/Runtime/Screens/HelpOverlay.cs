@@ -43,8 +43,8 @@ namespace OreSeas.Screens
                 body = "About once in 500 rounds ORE hits the Motherlode. The Kraken rises, and shots on the winning square haul up a big ORE prize." },
             new Card { title = "ORE, PLAINLY", art = ArtOre,
                 body = "ORE is a mining game on Solana: every minute miners pick squares on a 5x5 grid and one square wins. NUGSHIP uses those public rounds as fair dice." },
-            new Card { title = "NO WAGERING", art = ArtNoBet,
-                body = "No bets, no stakes, no SOL. Nothing is signed or spent in this build. Play for glory, rating and the leaderboard." },
+            new Card { title = "LIVE MINING (OPTIONAL)", art = ArtNoBet,
+                body = "Free by default: no SOL, nothing signed. 18+ can switch on LIVE MINING in Settings: each volley then deploys real SOL into ORE from your own wallet, and you approve every one. You can lose it. NUGSHIP never holds your SOL." },
             new Card { title = "ABOUT NUGGY", art = ArtNuggy, extra = NuggyExtra,
                 body = "Nuggy is the ship's cat of the NUGSHIP fleet. He sniffs out ORE on every grid and dances after every hit." },
         };
@@ -243,8 +243,8 @@ namespace OreSeas.Screens
         {
             Lay.SpriteCentered(p, "icon_vault", 120, 142, o, 2);
             Gfx.Rect(p, 96, 162, 48, 3, Pal.Red2, o + 2);
-            Caption(p, "FREE TO PLAY - NO SOL", 120, 206, o, Pal.Red1);
-            Caption(p, "LIVE_ORE IS OFF", 120, 220, o);
+            Caption(p, "FREE BY DEFAULT", 120, 206, o, Pal.Red1);
+            Caption(p, Services.LiveMining.Active ? "LIVE MINING ON" : "LIVE MINING OFF", 120, 220, o);
         }
     }
 }
