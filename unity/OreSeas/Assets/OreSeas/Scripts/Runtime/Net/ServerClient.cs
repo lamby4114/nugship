@@ -131,13 +131,29 @@ namespace OreSeas.Net
             ws.Send(Json.Serialize(msg));
         }
 
-        void SendHello()
+        /// <summary>Server challenge nonce (SIWS sign-in must include it).</summary>
+        public string Nonce { get; private set; }
+        /// <summary>fireMode for matches: "manual" (player signs each deploy) when live mining is on, else "virtual" (off-chain).</summary>
+        public static string FireMode => Services.LiveMining.Active ? "manual" : "virtual";
+
+        async void SendHello()
         {
             var hello = J.Msg("hello", "name", ServerConfig.PlayerName);
-            // LIVE_ORE gate: with LIVE_ORE=false we never present the wallet, so the server runs every match off-chain
-            // (fireMode "virtual") and never asks this client to deploy. SIWS sign-in is not attempted either.
-            if (ServerConfig.LIVE_ORE && GameApp.Wallet != null && GameApp.Wallet.IsConnected) hello["wallet"] = GameApp.Wallet.PublicKey;
-            else
+            // Live builds: present the wallet ONLY when the player opted in to live mining, and prove it with a SIWS signature
+            // over the server nonce (otherwise anyone could claim someone else's wallet). Not opted in -> guest, off-chain.
+            if (Services.LiveMining.Active && !string.IsNullOrEmpty(Nonce))
+            {
+                var wallet = GameApp.Wallet.PublicKey;
+                var msg = Services.LiveSignIn.Message(wallet, Nonce);
+                var sig = await GameApp.Wallet.SignText(msg);
+                if (sig.ok)
+                {
+                    hello["wallet"] = wallet;
+                    hello["signIn"] = new Dictionary<string, object> { ["message"] = msg, ["signature"] = sig.message };
+                }
+                else GameApp.Toast("WALLET SIGN-IN SKIPPED - PLAYING OFF-CHAIN");
+            }
+            if (!hello.ContainsKey("wallet"))
             {
                 if (!string.IsNullOrEmpty(GuestId)) hello["guestId"] = GuestId;
                 hello["guestKey"] = Services.Profile.GuestKey; // private; proves this phone owns the public guest id
@@ -174,7 +190,7 @@ namespace OreSeas.Net
             string t = J.Str(m, "t", "");
             switch (t)
             {
-                case "challenge": SendHello(); return;
+                case "challenge": Nonce = J.Str(m, "nonce"); SendHello(); return;
                 case "welcome":
                     PlayerId = J.Str(m, "playerId"); token = J.Str(m, "token"); Name = J.Str(m, "name"); Rating = J.Int(m, "rating", 1000);
                     Verified = J.Bool(m, "verified"); OreStatus = J.Obj(m, "ore"); StakeOptions = J.Strs(m, "stakeOptionsLamports").ToArray();
@@ -223,13 +239,13 @@ namespace OreSeas.Net
         }
 
         // ---------------- matchmaking ----------------
-        public void QueueRanked() => Send(J.Msg("queue_ranked", "stakeLamports", ServerConfig.StakeLamports, "fireMode", "auto"));
+        public void QueueRanked() => Send(J.Msg("queue_ranked", "stakeLamports", ServerConfig.StakeLamports, "fireMode", FireMode));
         public void CancelQueue() => Send(J.Msg("cancel_queue"));
         /// <summary>Invite code match. fireMode "virtual" = off-chain, no wallet (the only mode while LIVE_ORE=false).</summary>
-        public void CreatePrivate() => Send(J.Msg("create_private", "stakeLamports", ServerConfig.StakeLamports, "fireMode", ServerConfig.LIVE_ORE ? "auto" : "virtual"));
-        public void JoinPrivate(string code) => Send(J.Msg("join_private", "code", (code ?? "").Trim().ToUpperInvariant()));
+        public void CreatePrivate() => Send(J.Msg("create_private", "stakeLamports", ServerConfig.StakeLamports, "fireMode", FireMode));
+        public void JoinPrivate(string code) => Send(J.Msg("join_private", "code", (code ?? "").Trim().ToUpperInvariant(), "fireMode", FireMode));
         /// <summary>Solo vs a server AI captain. "practice" = synthetic fast rounds (fireNow allowed), no SOL.</summary>
-        public void StartSolo(string serverCaptainId, bool practice = true) => Send(J.Msg("start_solo", "captain", serverCaptainId, "mode", practice ? "practice" : "live"));
+        public void StartSolo(string serverCaptainId, bool practice = true) => Send(J.Msg("start_solo", "captain", serverCaptainId, "mode", practice ? "practice" : "live", "fireMode", practice ? "virtual" : FireMode));
         public void Resign() { if (Session != null && !Session.ended) Send(J.Msg("resign", "matchId", Session.matchId)); }
         public void ClearSession() { Session = null; }
 

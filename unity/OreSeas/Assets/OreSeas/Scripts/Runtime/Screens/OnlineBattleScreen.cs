@@ -185,7 +185,7 @@ namespace OreSeas.Screens
             bonusLabel = PixelText.Create(deckAim, "+1", 0, y + 16, TextStyle.Of(Pal.Gold3), 153);
             Gfx.Sprite(deckAim, "pouch", 104, y + 8, 153);
             bool pvp = session.IsPvp;
-            bool staked = pvp && ServerConfig.LIVE_ORE && session.fireMode != "virtual";   // LIVE_ORE off: every match is free
+            bool staked = ServerConfig.LIVE_ORE && session.fireMode != "virtual" && !Practice;   // off-chain matches are free
             PixelText.Create(deckAim, staked ? session.StakeSol.ToString("0.000") : "FREE", 123, y + 6, TextStyle.Of(Pal.Gold4), 153);
             PixelText.Create(deckAim, staked ? "SOL" : "NO STAKE", 123, y + 16, TextStyle.Of(Pal.Sand2), 153);
             lever = Gfx.Sprite(deckAim, Settings.AutoFire ? "lever_on" : "lever_off", 177, y + 9, 153);
@@ -436,8 +436,9 @@ namespace OreSeas.Screens
             RefreshSalvo(); fireBtn.SetEnabled(false); fireBtn.SetSub(locked.Count > 0 ? "SHOTS AWAY!" : "NO SHOTS THIS ROUND");
             if (J.Bool(m, "fire"))
             {
-                // The server wants an on-chain ORE Deploy. HARD GATE: this build never signs or sends one.
-                if (!ServerConfig.LIVE_ORE) Debug.LogWarning("[OreSeas] lock.fire=true ignored: LIVE_ORE=false (no deploy sent; the referee will count a misfire)");
+                // The server wants an on-chain ORE Deploy for exactly the locked squares. The PLAYER approves it in their wallet.
+                if (!ServerConfig.LIVE_ORE || !Services.LiveMining.Active) Debug.LogWarning("[OreSeas] lock.fire=true ignored: live mining off (the referee will count a misfire)");
+                else FireLive(J.Str(m, "matchId", session.matchId), J.ULong(m, "roundId"), (uint)J.ULong(m, "mask"), J.ULong(m, "amountLamports"));
             }
             nuggy.Play(NuggyView.Pose.Sleepy, 999f);
             GameApp.Audio.SetTension(0.3f);
@@ -451,6 +452,15 @@ namespace OreSeas.Screens
                 yield return new WaitForSeconds(0.16f);
             }
             if (!Practice) { hintText.Set("LOCKED - WAITING FOR ORE ROUND END"); wheel.fps = 10; }
+        }
+
+        async void FireLive(string matchId, ulong round, uint mask, ulong lamportsPerSquare)
+        {
+            fireBtn.SetSub("APPROVE IN WALLET");
+            var r = await Services.LiveMining.Fire(matchId, round, mask, lamportsPerSquare);
+            if (this == null) return;   // screen closed while the wallet was open
+            fireBtn.SetSub(r.ok ? "DEPLOYED ON ORE" : r.message);
+            GameApp.Toast(r.ok ? "DEPLOY SENT - SPENT " + (Services.LiveMining.SpentLamports / 1e9).ToString("0.000") + " SOL THIS MATCH" : "NO DEPLOY: " + r.message, 3f);
         }
 
         // ================= reveal =================
