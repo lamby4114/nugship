@@ -11,18 +11,30 @@ namespace OreSeas.Net
     public static class ServerConfig
     {
         /// <summary>
-        /// HARD GATE. While false the client never sends its wallet to the server (so every match is fireMode "virtual",
-        /// off-chain), never builds an ORE Deploy/Automate instruction (OreInstructions.cs only compiles with the
-        /// ORESEAS_LIVE_ORE define, which nothing sets), and never asks MWA/Seed Vault to sign anything.
-        /// Flipping it needs Victor's explicit in-chat OK. Do not make this a runtime setting.
+        /// LIVE MINING GATE (v1.1.0, approved by Victor Oct 14 2026). Compile-time: true only when the ORESEAS_LIVE_ORE
+        /// define is set (BuildScript.BuildAndroidRelease sets it for v1.1.0+). Even then nothing happens until the player
+        /// opts in (Settings.LiveMining, off by default, 18+ consent sheet) and approves EVERY deploy in their own wallet.
+        /// Non-custodial: SOL goes from the player's wallet straight to the ORE program.
         /// </summary>
+#if ORESEAS_LIVE_ORE
+        public const bool LIVE_ORE = true;
+#else
         public const bool LIVE_ORE = false;
+#endif
 
         /// <summary>
         /// HARD GATE for Sign-In-With-Solana wallet pairing (profile &lt;-&gt; wallet). While false the client never asks the
         /// wallet to sign a pairing message; profiles stay paired with the guest id only. Needs Victor's OK to flip.
         /// </summary>
+#if ORESEAS_LIVE_ORE
+        public const bool SIWS_PAIRING = true;    // live builds sign in with the wallet (SIWS) so nobody can claim another wallet's deploys
+#else
         public const bool SIWS_PAIRING = false;
+#endif
+        /// <summary>MWA dApp identity shown in the wallet approval sheet (must be the listed website).</summary>
+        public const string DappIdentityUri = "https://lamby4114.github.io/nugship/";
+        public const string DappIconPath = "favicon.png";
+        public const string SiwsDomain = "lamby4114.github.io";
 
         /// <summary>Dev builds: the PC server through `adb reverse tcp:8787 tcp:8787` (cleartext, development builds only).</summary>
         public const string DevServer = "ws://127.0.0.1:8787/ws";
