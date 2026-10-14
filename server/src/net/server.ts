@@ -45,7 +45,12 @@ export class GameServer {
   readonly matches = new Map<string, Match>();
   private queue: QueueEntry[] = [];
   private privates = new Map<string, { conn: Conn; stake: bigint; fireMode: FireMode; created: number }>();
-  private sessions = new Map<string, { token: string; matchId?: string; seat?: 0 | 1 }>();
+  private sessions = new Map<string, { token: string; matchId?: string; seat?: 0 | 1; verifiedWallet?: string }>();
+  /** Challenge nonces issued in the last NONCE_TTL_MS (nonce -> issuedAt). A wallet round-trip (Phantom) often kills the
+   *  socket that issued the nonce, so a SIWS proof may arrive on the NEXT socket. Accepted once, then consumed. */
+  private recentNonces = new Map<string, number>();
+  private usedNonces = new Map<string, number>();
+  static readonly NONCE_TTL_MS = 5 * 60_000;
   private conns = new Set<Conn>();
   /** Accounts deleted while a match was still finishing: their result row is scrubbed again after recordMatch. */
   private deleted = new Set<string>();
@@ -179,6 +184,7 @@ export class GameServer {
   // ------------------------------------------------------------------ WS
   private onConnection(ws: WebSocket) {
     const c: Conn = { ws, cid: crypto.randomBytes(4).toString("hex"), nonce: crypto.randomBytes(16).toString("hex"), alive: true };
+    this.rememberNonce(c.nonce);
     this.conns.add(c);
     ws.on("pong", () => (c.alive = true));
     // Without this, a protocol error (e.g. a frame over maxPayload) is an uncaught exception that takes the whole server down.
@@ -207,6 +213,27 @@ export class GameServer {
 
   private senders = new WeakMap<Conn, (m: any) => void>();
   private sender(c: Conn) { let s = this.senders.get(c); if (!s) { s = (m: any) => this.out(c, m); this.senders.set(c, s); } return s; }
+
+  private rememberNonce(n: string) {
+    const now = Date.now();
+    for (const [k, t] of this.recentNonces) if (now - t > GameServer.NONCE_TTL_MS) this.recentNonces.delete(k);
+    for (const [k, t] of this.usedNonces) if (now - t > GameServer.NONCE_TTL_MS) this.usedNonces.delete(k);
+    this.recentNonces.set(n, now);
+  }
+
+  /** SIWS for hello: the message must carry THIS socket's nonce or a recent one this server issued (<= 5 min, never used
+   *  before), name the wallet, and verify ed25519 against it. A successful proof consumes its nonce (single use). */
+  verifyHelloSignIn(c: Conn, wallet: string, message: string, sig: string): boolean {
+    const m = /Nonce: ([0-9a-f]{32})\b/.exec(message);
+    const n = m?.[1] ?? (message.includes(c.nonce) ? c.nonce : null);
+    if (!n || this.usedNonces.has(n)) return false;
+    const issued = n === c.nonce ? Date.now() : this.recentNonces.get(n);
+    if (issued === undefined || Date.now() - issued > GameServer.NONCE_TTL_MS) return false;
+    if (!message.includes(wallet)) return false;
+    if (!this.verifySignIn(wallet, message, sig, n)) return false;
+    this.usedNonces.set(n, Date.now()); this.recentNonces.delete(n);
+    return true;
+  }
 
   private verifySignIn(wallet: string, message: string, sig: string, nonce: string): boolean {
     try {
@@ -377,7 +404,7 @@ export class GameServer {
     let wallet: string | null = null, verified = false;
     if (m.wallet) {
       try { wallet = new PublicKey(m.wallet).toBase58(); } catch { return this.err(c, "bad_wallet", "invalid wallet pubkey", "hello"); }
-      if (m.signIn?.message && m.signIn?.signature) verified = this.verifySignIn(wallet, String(m.signIn.message), String(m.signIn.signature), c.nonce);
+      if (m.signIn?.message && m.signIn?.signature) verified = this.verifyHelloSignIn(c, wallet, String(m.signIn.message), String(m.signIn.signature));
       if (m.signIn && !verified) return this.err(c, "bad_signature", "sign-in signature invalid or nonce missing", "hello");
     }
     let playerId = wallet ?? (typeof m.guestId === "string" && /^g_[a-f0-9]{16}$/.test(m.guestId) ? m.guestId : "g_" + crypto.randomBytes(8).toString("hex"));
@@ -392,6 +419,8 @@ export class GameServer {
     const sess = this.sessions.get(playerId);
     let resumed = false;
     if (m.resume?.token && sess && sess.token === m.resume.token && m.resume.playerId === playerId) resumed = true;
+    // a resumed session (secret token) of a wallet that already proved itself stays verified across reconnects
+    if (wallet && !verified && resumed && sess?.verifiedWallet === wallet) verified = true;
     if (wallet && !verified && sess && !resumed && this.o.requireWalletProof !== false) {
       // someone else claiming a wallet with a live session: don't let them hijack it
       if (sess.matchId && this.matches.get(sess.matchId)?.phase !== "finished") return this.err(c, "wallet_unverified", "wallet has an active session; sign in to take it over", "hello");
@@ -406,7 +435,7 @@ export class GameServer {
     if (!wallet && typeof m.guestKey === "string" && /^[0-9a-f]{32,64}$/.test(m.guestKey)) this.o.store.setGuestSecret(playerId, sha256hex(m.guestKey));
     const prow = this.o.store.getPlayer(playerId);
     c.name = prow?.name ?? name; c.avatar = prow?.avatar ?? DEFAULT_AVATAR;
-    this.sessions.set(playerId, { token, matchId: resumed ? sess!.matchId : sess?.matchId, seat: sess?.seat });
+    this.sessions.set(playerId, { token, matchId: resumed ? sess!.matchId : sess?.matchId, seat: sess?.seat, verifiedWallet: verified && wallet ? wallet : resumed ? sess?.verifiedWallet : undefined });
     const rating = Math.round(this.o.store.getPlayer(playerId)?.rating ?? 1000);
     let activeMatch: string | null = null;
     const s2 = this.sessions.get(playerId)!;
