@@ -187,7 +187,7 @@ export class Store {
     return `SELECT mp.player_id AS id, p.name AS name, p.wallet AS wallet, p.rating AS rating, p.avatar AS avatar, MAX(p.is_bot) AS isBot,
       COUNT(*) AS games, SUM(result='win') AS wins, SUM(result='loss') AS losses, SUM(result='draw') AS draws,
       SUM(volleys) AS volleys, SUM(shots) AS shots, SUM(hits) AS hits, SUM(sunk) AS sunk, SUM(crits) AS crits,
-      SUM(ore_grams) AS oreGrams, SUM(kraken) AS kraken, SUM(misfires) AS misfires
+      SUM(ore_grams) AS oreGrams, SUM(kraken) AS kraken, SUM(misfires) AS misfires, SUM(COALESCE(lamports_deployed,0)) AS lamports
       FROM match_players mp JOIN players p ON p.id = mp.player_id ${where} GROUP BY mp.player_id`;
   }
   private shape(row: any) {
@@ -196,7 +196,8 @@ export class Store {
       id: row.id, name: row.name, avatar: row.avatar ?? "a:captain", ai: !!row.isBot, wallet: row.wallet, rating: Math.round(row.rating), games: row.games, wins: row.wins, losses: row.losses, draws: row.draws,
       wl: row.losses ? +(row.wins / row.losses).toFixed(2) : row.wins, battles: row.games, volleys: row.volleys, shots: row.shots, hits: row.hits,
       accuracy: row.shots ? +(row.hits / row.shots).toFixed(3) : 0, sunk: row.sunk, crits: row.crits, ore: row.oreGrams / 1e11, oreGrams: String(row.oreGrams),
-      kraken: row.kraken, misfires: row.misfires,
+      kraken: row.kraken, misfires: row.misfires, motherlodes: row.kraken, roundsHit: row.hits,
+      winRate: row.games ? +(row.wins / row.games).toFixed(3) : 0, lamportsDeployed: String(row.lamports ?? 0), solDeployed: Number(row.lamports ?? 0) / 1e9,
     };
   }
   private filter(period: Period, mode: LbMode, extra = "") {
@@ -222,12 +223,12 @@ export class Store {
     const p = this.getPlayer(id);
     if (!p) return null;
     const one = (period: Period, mode: LbMode) => this.shape(this.db.prepare(this.aggSql(this.filter(period, mode, `mp.player_id = @id`))).get({ id }))
-      ?? { games: 0, wins: 0, losses: 0, draws: 0, wl: 0, battles: 0, volleys: 0, shots: 0, hits: 0, accuracy: 0, sunk: 0, crits: 0, ore: 0, oreGrams: "0", kraken: 0, misfires: 0 };
+      ?? { games: 0, wins: 0, losses: 0, draws: 0, wl: 0, battles: 0, volleys: 0, shots: 0, hits: 0, accuracy: 0, sunk: 0, crits: 0, ore: 0, oreGrams: "0", kraken: 0, misfires: 0, motherlodes: 0, roundsHit: 0, winRate: 0, lamportsDeployed: "0", solDeployed: 0 };
     return { id: p.id, name: p.name, avatar: p.avatar ?? "a:captain", ai: !!p.is_bot, claimed: !!p.claimed, wallet: p.wallet, rating: Math.round(p.rating), global: { all: one("all", "all"), ranked: one("all", "ranked"), solo: one("all", "solo") }, weekly: { all: one("week", "all"), ranked: one("week", "ranked"), solo: one("week", "solo") } };
   }
 
   recentMatches(playerId: string, limit = 20) {
-    return this.db.prepare(`SELECT m.id, m.mode, m.source, m.started_at AS startedAt, m.ended_at AS endedAt, m.reason, m.turns, mp.result, mp.hits, mp.shots, mp.crits, mp.ore_grams AS oreGrams
+    return this.db.prepare(`SELECT m.id, m.mode, m.source, m.started_at AS startedAt, m.ended_at AS endedAt, m.reason, m.turns, mp.result, mp.hits, mp.shots, mp.crits, mp.ore_grams AS oreGrams, mp.kraken AS motherlodes, COALESCE(mp.lamports_deployed,0) AS lamportsDeployed
       FROM match_players mp JOIN matches m ON m.id = mp.match_id WHERE mp.player_id = ? ORDER BY m.ended_at DESC LIMIT ?`).all(playerId, Math.max(1, Math.min(100, Math.floor(Number(limit)) || 20)));  // NaN / negative (SQLite LIMIT -1 = unlimited) clamp
   }
   getMatch(id: string) {
