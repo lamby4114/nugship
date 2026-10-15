@@ -1,0 +1,21 @@
+// Mainnet simulate (no send, no key): the exact executor-signed volley the server builds for a player's existing Automation.
+import { Connection, PublicKey, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
+import { eligible, volleyIxs, EXECUTOR_FEE_LAMPORTS } from "../src/chain/executor.js";
+import { automationPda, minerPda, boardPda } from "../src/ore/pda.js";
+import { decodeAutomation, decodeMiner } from "../src/ore/accounts.js";
+const c = new Connection(process.env.RPC_URL ?? "https://api.mainnet-beta.solana.com", "confirmed");
+const EXEC = new PublicKey("BFhXQCdrJWxoeKHcK56Mr7BAUGWmeCV4LkMdsnFVGR5K");
+const me = new PublicKey(process.argv[2] ?? "14RMqeviZGaZhYXeRWmQbWj2hUT6p6haKkHAEThmJe69");
+const amount = BigInt(process.argv[3] ?? "1000000"), mask = Number(process.argv[4] ?? ((1 << 7) | (1 << 12)));
+const [a, m, b] = await c.getMultipleAccountsInfo([automationPda(me), minerPda(me), boardPda()]);
+const auto = a ? decodeAutomation(Buffer.from(a.data)) : null, miner = m ? decodeMiner(Buffer.from(m.data)) : null;
+const roundId = Buffer.from(b!.data).readBigUInt64LE(8);
+console.log("executor SOL", (await c.getBalance(EXEC)) / 1e9, "| round", roundId.toString());
+console.log("automation", auto ? { executor: auto.executor.toBase58(), balance: auto.balance.toString(), amount: auto.amount.toString(), fee: auto.fee.toString(), strategy: auto.strategy.toString() } : null);
+const el = eligible(EXEC, auto, miner, mask, amount, EXECUTOR_FEE_LAMPORTS);
+console.log("eligible", el.ok ? "ok" : el.reason);
+const { blockhash } = await c.getLatestBlockhash();
+const tx = new VersionedTransaction(new TransactionMessage({ payerKey: EXEC, recentBlockhash: blockhash, instructions: volleyIxs(EXEC, me, miner, roundId, mask, amount, 0n) }).compileToV0Message());
+const r = await c.simulateTransaction(tx, { sigVerify: false, replaceRecentBlockhash: true });
+console.log("SIM", r.value.err ? "FAIL " + JSON.stringify(r.value.err) : "OK", "CU", r.value.unitsConsumed);
+(r.value.logs ?? []).filter((l) => /Program log/.test(l)).forEach((l) => console.log("  " + l));

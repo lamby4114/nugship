@@ -223,8 +223,7 @@ export class Match {
     try { r = await this.executor!.place(p.wallet!, roundId, mask, this.stakeLamports, endSlot); }
     catch (e: any) { r = { placed: false, reason: "error:" + (e?.message ?? e) }; }
     this.log(`[${this.id}] executor ${p.wallet!.slice(0, 6)} r${roundId} placed=${r.placed} ${r.reason ?? ""} ${r.sig ?? ""}`);
-    // fallback (player signs) only when nothing may have landed and the round is still open
-    const fallback = !r.placed && !r.sig && this.source.slot() < endSlot - 8;
+    const fallback = volleyFallback(r, this.source.slot(), endSlot);
     p.send({ t: "volley", matchId: this.id, roundId, placed: r.placed, sig: r.sig ?? null, lamports: r.lamports ?? null, reason: r.reason ?? null, fallback, mask, amountLamports: this.stakeLamports.toString(), endSlot });
   }
 
@@ -440,4 +439,10 @@ export class Match {
     this.log(`[${this.id}] finished: ${reason}, winner seat ${winnerSeat}`);
     this.onEnd?.(r, this);
   }
+}
+
+/** Player signs the volley itself ONLY when the wallet has no Automation at all: ORE rejects a wallet-signed Deploy while any
+ *  Automation exists (deploy.rs: signer must be its executor), and nothing may have landed and the round must still be open. */
+export function volleyFallback(r: { placed: boolean; sig?: string; reason?: string }, slot: number, endSlot: number): boolean {
+  return !r.placed && !r.sig && r.reason === "no_automation" && slot < endSlot - 8;
 }
