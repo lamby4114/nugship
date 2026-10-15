@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import { PublicKey } from "@solana/web3.js";
 import { RoundResult, RoundSource, RoundWindow, PracticeRoundSource } from "../chain/roundSource.js";
 import { DeployReader, DeployRecord } from "../chain/deployReader.js";
+import type { VolleyExecutor } from "../chain/executor.js";
 import { Captain, SeaKnowledge, chooseTargets } from "./ai.js";
 import { FleetState, Layout, SHIPS, ShipType, commitLayout, randomLayout, randomSalt, validateLayout } from "./fleet.js";
 import { ONE_ORE, oreEarned, solReturned, squareToCoord, squaresToMask } from "../ore/index.js";
@@ -65,6 +66,8 @@ export interface MatchOpts {
   id?: string; mode: MatchMode; source: RoundSource; reader: DeployReader | null; stakeLamports: bigint;
   players: [PlayerInit, PlayerInit]; onEnd?: (r: MatchResult, m: Match) => void; log?: (m: string) => void; rng?: () => number;
   ownsSource?: boolean; aiDelayMs?: number;
+  /** ORE Automation executor: places manual-fire volleys from the player's deposit (no wallet prompt). */
+  executor?: VolleyExecutor | null;
 }
 
 const fx = (hit: boolean, crit: boolean): Fx => (hit ? (crit ? "critical" : "explosion") : crit ? "gold_bubbles" : "splash");
@@ -77,13 +80,13 @@ export class Match {
   revealLog: any[] = []; roundsPlayed: number[] = [];
   private source: RoundSource; private reader: DeployReader | null; private onEnd?: MatchOpts["onEnd"]; private log: (m: string) => void;
   private rng: () => number; private placeTimer?: NodeJS.Timeout; private listeners: [string, (...a: any[]) => void][] = [];
-  private ownsSource: boolean; private aiDelayMs: number; result: MatchResult | null = null;
+  private ownsSource: boolean; private aiDelayMs: number; private executor: VolleyExecutor | null; result: MatchResult | null = null;
 
   constructor(o: MatchOpts) {
     this.id = o.id ?? crypto.randomBytes(6).toString("hex");
     this.mode = o.mode; this.source = o.source; this.reader = o.reader; this.stakeLamports = o.stakeLamports;
     this.players = [new Player(0, o.players[0]), new Player(1, o.players[1])];
-    this.onEnd = o.onEnd; this.log = o.log ?? (() => {}); this.rng = o.rng ?? Math.random; this.ownsSource = !!o.ownsSource; this.aiDelayMs = o.aiDelayMs ?? 1500;
+    this.onEnd = o.onEnd; this.log = o.log ?? (() => {}); this.rng = o.rng ?? Math.random; this.ownsSource = !!o.ownsSource; this.aiDelayMs = o.aiDelayMs ?? 1500; this.executor = o.executor ?? null;
   }
 
   get sourceKind() { return this.source.kind; }
@@ -207,8 +210,22 @@ export class Match {
       p.send({
         t: "lock", matchId: this.id, roundId: t.roundId, squares: p.locked, coords: p.locked.map(squareToCoord), mask: squaresToMask(p.locked),
         amountLamports: this.stakeLamports.toString(), fire: p.onChain && p.locked.length > 0, fireMode: p.fireMode, endSlot: t.endSlot, slot: this.source.slot(),
+        serverPlaces: this.serverPlaces(p),
       });
+      if (this.serverPlaces(p)) void this.placeForPlayer(p, t.roundId, squaresToMask(p.locked ?? []), t.endSlot);
     }
+  }
+
+  /** Manual-fire live volleys go through the executor first; client signs itself only on `volley.fallback`. */
+  private serverPlaces(p: Player) { return !!this.executor && p.onChain && p.fireMode === "manual" && (p.locked?.length ?? 0) > 0 && this.source.kind === "live"; }
+  private async placeForPlayer(p: Player, roundId: number, mask: number, endSlot: number) {
+    let r: Awaited<ReturnType<VolleyExecutor["place"]>>;
+    try { r = await this.executor!.place(p.wallet!, roundId, mask, this.stakeLamports, endSlot); }
+    catch (e: any) { r = { placed: false, reason: "error:" + (e?.message ?? e) }; }
+    this.log(`[${this.id}] executor ${p.wallet!.slice(0, 6)} r${roundId} placed=${r.placed} ${r.reason ?? ""} ${r.sig ?? ""}`);
+    // fallback (player signs) only when nothing may have landed and the round is still open
+    const fallback = !r.placed && !r.sig && this.source.slot() < endSlot - 8;
+    p.send({ t: "volley", matchId: this.id, roundId, placed: r.placed, sig: r.sig ?? null, lamports: r.lamports ?? null, reason: r.reason ?? null, fallback, mask, amountLamports: this.stakeLamports.toString(), endSlot });
   }
 
   private async onSettled(res: RoundResult) {

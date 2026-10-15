@@ -24,6 +24,8 @@ export interface ServerOpts {
   allowedOrigins?: "*" | string[];
   /** Distinct reporters needed before a reported name/portrait is taken down automatically (default 3). */
   reportThreshold?: number;
+  /** ORE Automation executor (EXECUTOR_KEY). null = players sign every volley themselves. */
+  executor?: import("../chain/executor.js").VolleyExecutor | null;
 }
 
 /** Per-connection message cap (a real client sends a handful per second; the seat survives a reconnect). */
@@ -311,6 +313,11 @@ export class GameServer {
       case "fired": // informational: client reports its deploy tx signature (the referee still reads chain state)
         if (match) this.log(`[${match.id}] seat ${c.seat} fired round ${m.roundId} sig ${String(m.signature).slice(0, 16)}…`);
         return this.out(c, { t: "fired_ack", roundId: m.roundId });
+      case "automation_status": { // player's ORE Automation deposit as our executor sees it (read-only)
+        if (!this.o.executor || !c.wallet) return this.out(c, { t: "automation_status", executor: null });
+        this.o.executor.status(c.wallet).then((s) => this.out(c, { t: "automation_status", ...s })).catch((e) => this.out(c, { t: "automation_status", executor: this.o.executor!.pubkey, error: String(e?.message ?? e) }));
+        return;
+      }
       case "resign":
         if (match) match.resign(c.seat!);
         return;
@@ -445,7 +452,7 @@ export class GameServer {
         c.matchId = mt.id; c.seat = s2.seat; activeMatch = mt.id;
       }
     }
-    this.out(c, { t: "welcome", protocol: PROTOCOL_VERSION, playerId, token, name: c.name, avatar: c.avatar, nameClaimed: !!prow?.claimed, pairedWallet: prow?.paired_wallet ?? null, walletPairing: !!this.o.allowWalletPairing, blocked: this.o.store.blockedBy(playerId), wallet, verified, rating, activeMatch, ore: this.oreStatus(), stakeOptionsLamports: this.stakeOptions.map(String) });
+    this.out(c, { t: "welcome", protocol: PROTOCOL_VERSION, playerId, token, name: c.name, avatar: c.avatar, nameClaimed: !!prow?.claimed, pairedWallet: prow?.paired_wallet ?? null, walletPairing: !!this.o.allowWalletPairing, blocked: this.o.store.blockedBy(playerId), wallet, verified, rating, activeMatch, ore: this.oreStatus(), stakeOptionsLamports: this.stakeOptions.map(String), executor: this.o.executor ? { pubkey: this.o.executor.pubkey, feeLamports: this.o.executor.feeLamports.toString() } : null });
     if (activeMatch) this.matches.get(activeMatch)!.reconnect(c.seat!, this.sender(c));
   }
 
@@ -459,7 +466,7 @@ export class GameServer {
 
   private startMatch(mode: MatchMode, inits: [PlayerInit, PlayerInit], conns: [Conn | null, Conn | null], stake: bigint, source: RoundSource, ownsSource: boolean) {
     const match = new Match({
-      mode, source, reader: this.o.reader, stakeLamports: stake, players: inits, ownsSource, log: this.log, aiDelayMs: this.o.aiDelayMs,
+      mode, source, reader: this.o.reader, stakeLamports: stake, players: inits, ownsSource, log: this.log, aiDelayMs: this.o.aiDelayMs, executor: this.o.executor ?? null,
       onEnd: (r) => {
         let deltas: [number, number] = [0, 0];
         try { deltas = this.o.store.recordMatch(r); } catch (e) { this.log("recordMatch failed " + e); }

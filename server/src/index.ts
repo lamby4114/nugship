@@ -3,6 +3,7 @@
 //   REPLAY_SPEED=10  REQUIRE_WALLET_PROOF=true|false  ALLOW_GUEST_RANKED  ALLOW_WALLET_PAIRING  SIWS_DOMAIN
 //   ALLOWED_ORIGINS=*|https://a,https://b  LOG_FORMAT=json|text  SHUTDOWN_GRACE_MS=1500
 //   STAKE_OPTIONS=1000000,5000000,10000000  DEFAULT_STAKE=5000000
+//   EXECUTOR_KEY=<json secret-key array> (Fly secret; ORE Automation executor, places volleys from player deposits)
 // The server never signs or sends transactions.
 import { ReadOnlyRpc } from "./chain/rpc.js";
 import { LiveRoundSource, PracticeRoundSource, ReplayRoundSource, RoundSource } from "./chain/roundSource.js";
@@ -11,6 +12,8 @@ import { Store } from "./db/store.js";
 import { GameServer } from "./net/server.js";
 import { loadConfig, redacted } from "./config/config.js";
 import { makeLogger } from "./config/log.js";
+import { Connection } from "@solana/web3.js";
+import { OreExecutor, loadExecutorKey } from "./chain/executor.js";
 
 const cfg = loadConfig();
 const log = makeLogger(cfg.logFormat, cfg.logFormat === "json" ? { app: "nugship-server", region: process.env.FLY_REGION, machine: process.env.FLY_MACHINE_ID } : {});
@@ -32,8 +35,11 @@ const reader = new ChainDeployReader(rpc);
 reader.log = log;
 const store = new Store(cfg.dbPath);
 await source.start();
+const execKey = loadExecutorKey();
+const executor = execKey ? new OreExecutor(execKey, new Connection(cfg.rpcUrl, "confirmed"), (m) => log.at("info", m)) : null;
+log.at("info", executor ? `ORE executor ${executor.pubkey} (fee ${executor.feeLamports} lamports/volley)` : "ORE executor off (no EXECUTOR_KEY): players sign every volley");
 const server = new GameServer({
-  port: cfg.port, store, source, reader, log,
+  port: cfg.port, store, source, reader, log, executor,
   requireWalletProof: cfg.requireWalletProof,
   allowGuestRanked: cfg.allowGuestRanked, // dev/demo: guest ranked queue, virtual shots only
   allowWalletPairing: cfg.allowWalletPairing, // SIWS pairing: OFF by default (asks the wallet to sign a message)
