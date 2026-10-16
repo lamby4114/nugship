@@ -62,7 +62,14 @@ test("SIWS over a dead socket's nonce verifies once on the next socket; resume k
     // live solo on D: manual fire with the requested stake (not practice/virtual)
     const mf = await d.ask({ t: "start_solo", captain: "barnacle", mode: "live", fireMode: "manual", stakeLamports: "1000000" }, "match_found");
     assert.equal(mf.t, "match_found"); assert.equal(mf.fireMode, "manual"); assert.equal(mf.stakeLamports, "1000000"); assert.notEqual(mf.mode, "practice");
-    d.close();
+    d.close(); await sleep(50);
+    // app killed mid-match, relaunched with the persisted resume token: the old solo must not block a new one (was "in_match")
+    const f = open(port); await f.challenge();
+    const wF = await f.hello({ wallet, resume: { playerId: wallet, token: wB.token } });
+    assert.equal(wF.t, "welcome", JSON.stringify(wF).slice(0, 200)); assert.equal(wF.activeMatch, mf.matchId);
+    const mf2 = await f.ask({ t: "start_solo", captain: "barnacle", mode: "live", fireMode: "manual", stakeLamports: "1000000" }, "match_found");
+    assert.equal(mf2.t, "match_found"); assert.notEqual(mf2.matchId, mf.matchId);
+    f.close();
   } finally { server.close(); }
 });
 

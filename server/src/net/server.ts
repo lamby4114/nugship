@@ -290,7 +290,15 @@ export class GameServer {
       }
       case "start_solo": {
         if (this.draining) return this.err(c, "server_restarting", "server is restarting, try again in a few seconds", m.t);
-        if (match && match.phase !== "finished") return this.err(c, "in_match", "already in a match", m.t);
+        if (match && match.phase !== "finished") {
+          // A solo vs AI left running (app killed / relaunched, resume token restored the seat) must not block a new solo:
+          // the player starting a new one resigns the old one (recorded as a loss, AI has no stake). PvP still refuses.
+          if (match.mode !== "solo_live" && match.mode !== "practice") return this.err(c, "in_match", "already in a match", m.t);
+          this.log(`[${match.id}] ${c.playerId} started a new solo; resigning the abandoned ${match.mode}`);
+          match.resign(c.seat!);
+          const s = this.sessions.get(c.playerId!); if (s?.matchId === match.id) s.matchId = undefined;
+          c.matchId = undefined; c.seat = undefined;
+        }
         const cap = captainById(m.captain ?? "barnacle"); if (!cap) return this.err(c, "bad_captain", "unknown captain", m.t);
         const practice = m.mode !== "live";
         let fireMode: FireMode = practice ? "virtual" : m.fireMode === "manual" ? "manual" : m.fireMode === "virtual" ? "virtual" : "auto";
@@ -442,7 +450,10 @@ export class GameServer {
     if (!wallet && typeof m.guestKey === "string" && /^[0-9a-f]{32,64}$/.test(m.guestKey)) this.o.store.setGuestSecret(playerId, sha256hex(m.guestKey));
     const prow = this.o.store.getPlayer(playerId);
     c.name = prow?.name ?? name; c.avatar = prow?.avatar ?? DEFAULT_AVATAR;
-    this.sessions.set(playerId, { token, matchId: resumed ? sess!.matchId : sess?.matchId, seat: sess?.seat, verifiedWallet: verified && wallet ? wallet : resumed ? sess?.verifiedWallet : undefined });
+    // an unverified, non-resumed hello for a wallet must not replace that wallet's verified session (it would invalidate the
+    // owner's persisted resume token and log them out on their next launch); it gets a throwaway token instead.
+    const keepOwner = !!wallet && !verified && !resumed && !!sess && sess.verifiedWallet === wallet;
+    if (!keepOwner) this.sessions.set(playerId, { token, matchId: resumed ? sess!.matchId : sess?.matchId, seat: sess?.seat, verifiedWallet: verified && wallet ? wallet : resumed ? sess?.verifiedWallet : undefined });
     const rating = Math.round(this.o.store.getPlayer(playerId)?.rating ?? 1000);
     let activeMatch: string | null = null;
     const s2 = this.sessions.get(playerId)!;
