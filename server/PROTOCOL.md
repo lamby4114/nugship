@@ -78,7 +78,7 @@ client                                   server
 | `create_private` | `stakeLamports?`, `fireMode?` `"auto"`\|`"manual"`\|`"virtual"` | Replies `private_created {code}` (6 chars, valid 10 min). `"virtual"` makes the match off-chain with no wallet needed. |
 | `join_private` | `code`, `fireMode?` | |
 | `start_solo` | `captain` (id from `/api/captains`), `mode` `"practice"`\|`"live"`, `fireMode?`, `stakeLamports?` | `practice` runs fast off-chain turns (30 s aim, `fireNow` skips ahead). `live` uses real ORE rounds; with a wallet plus auto/manual your shots are real deploys, and without one they're virtual (no ORE). |
-| `place_fleet` | `matchId`, `layout` int[25], `salt` hex64, `commit?` hex64 | If you skip placement, the server auto-places after 60 s and returns the layout and salt in `fleet_ack`. |
+| `place_fleet` | `matchId`, `layout` int[25], `salt` hex64, `commit?` hex64, `stakeLamports?` | If you skip placement, the server auto-places after 60 s and returns the layout and salt in `fleet_ack`. `stakeLamports` (v1.1.0, solo vs AI only, one of the stake options) sets SOL per cannon for the match, which is chosen on the placement screen. It is optional: when absent, the `start_solo` stake stays. A bad value or a PvP match gets `bad_stake` and the fleet is not placed. |
 | `aim` | `matchId`, `roundId`, `squares` int[] (≤ `maxShots`, unique, not already fired at), `fireNow?` bool | The latest aim before lock wins. `fireNow` only works in practice vs AI. |
 | `fired` | `matchId`, `roundId`, `signature` | Informational only. The referee always reads chain state. |
 | `resign` | `matchId` | |
@@ -94,7 +94,7 @@ client                                   server
 | `queued` / `queue_left` | `position`, `stakeLamports` |
 | `private_created` | `code`, `stakeLamports`, `expiresInSeconds` |
 | `match_found` | `matchId`, `mode` (`ranked`\|`private`\|`solo_live`\|`practice`), `seat` (0/1), `fireMode`, `stakeLamports` (per shot, per square), `source` (`live`\|`replay`\|`practice`), `rules`, `placementSeconds`, `opponent {name, id, isAI, captain, rating, wallet}` |
-| `fleet_ack` | `commit`, `autoPlaced`, plus `layout` and `salt` if auto-placed |
+| `fleet_ack` | `commit`, `autoPlaced`, `stakeLamports` (the match stake after placement), plus `layout` and `salt` if auto-placed |
 | `opponent_ready` | – |
 | `fleets_committed` | `yourCommit`, `opponentCommit` (**store opponentCommit**) |
 | `turn_start` | `turn`, `roundId`, `startSlot`, `endSlot`, `lockSlot`, `slot`, `slotMs`, `serverTime`, `maxShots`, `bonusShots`, `bonusReason` (`"sank"`\|`"crit"`\|null), `afloat` string[], `opponentAfloat`, `alreadyFired` int[] |

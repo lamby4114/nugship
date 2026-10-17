@@ -74,7 +74,7 @@ const fx = (hit: boolean, crit: boolean): Fx => (hit ? (crit ? "critical" : "exp
 const oreNum = (g: bigint) => Number(g) / Number(ONE_ORE);
 
 export class Match {
-  readonly id: string; readonly mode: MatchMode; readonly stakeLamports: bigint; readonly createdAt = Date.now();
+  readonly id: string; readonly mode: MatchMode; stakeLamports: bigint; readonly createdAt = Date.now();
   readonly players: [Player, Player];
   phase: Phase = "placing"; turn: Turn | null = null; turnsPlayed = 0; lastRoundUsed = -1;
   revealLog: any[] = []; roundsPlayed: number[] = [];
@@ -116,6 +116,17 @@ export class Match {
     }, RULES.placementSeconds * 1000);
   }
 
+  /** v1.1.0: the player picks SOL PER CANNON on the placement screen and sends it with place_fleet. Only before any turn,
+   *  only in a solo vs AI (a PvP stake was agreed by both sides at matchmaking). Returns an error string or null. */
+  setStake(seat: number, lamports: bigint): string | null {
+    if (this.phase !== "placing") return "stake can only change before the first round";
+    if (this.mode !== "solo_live" && this.mode !== "practice") return "stake is fixed for this match";
+    if (!this.players[seat] || this.players[seat].isAI) return "bad seat";
+    if (this.players[seat].fleet) return "fleet already placed";
+    this.stakeLamports = lamports;
+    return null;
+  }
+
   placeFleet(seat: number, layout: Layout, saltHex: string, commit?: string): string | null {
     const p = this.players[seat];
     if (this.phase !== "placing") return "fleet already locked";
@@ -126,7 +137,7 @@ export class Match {
     const c = commitLayout(layout, saltHex);
     if (commit && commit.toLowerCase() !== c) return "commit does not match sha256(layout||salt)";
     p.layout = [...layout]; p.salt = saltHex.toLowerCase(); p.commit = c; p.fleet = new FleetState(p.layout);
-    p.send({ t: "fleet_ack", matchId: this.id, commit: c, autoPlaced: p.autoPlaced, layout: p.autoPlaced ? p.layout : undefined, salt: p.autoPlaced ? p.salt : undefined });
+    p.send({ t: "fleet_ack", matchId: this.id, stakeLamports: this.stakeLamports.toString(), commit: c, autoPlaced: p.autoPlaced, layout: p.autoPlaced ? p.layout : undefined, salt: p.autoPlaced ? p.salt : undefined });
     this.opp(p).send({ t: "opponent_ready", matchId: this.id });
     if (this.players.every((x) => x.fleet)) {
       clearTimeout(this.placeTimer);

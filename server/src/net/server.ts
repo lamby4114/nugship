@@ -310,6 +310,10 @@ export class GameServer {
       }
       case "place_fleet": {
         if (!match || match.id !== m.matchId) return this.err(c, "no_match", "not in that match", m.t);
+        if (m.stakeLamports !== undefined && m.stakeLamports !== null) {   // optional (older clients never send it): SOL PER CANNON chosen at placement
+          const st = this.parseStake(m.stakeLamports); if (st === null) return this.err(c, "bad_stake", `stake must be one of ${this.stakeOptions.join(",")}`, m.t);
+          if (st !== match.stakeLamports) { const se = match.setStake(c.seat!, st); if (se) return this.err(c, "bad_stake", se, m.t); this.log(`[${match.id}] stake set at placement: ${st}`); }
+        }
         const e = match.placeFleet(c.seat!, m.layout, m.salt, m.commit);
         return e ? this.err(c, "bad_fleet", e, m.t) : undefined;
       }
