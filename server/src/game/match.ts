@@ -381,6 +381,17 @@ export class Match {
 
   resign(seat: number) { if (this.phase !== "finished") this.finish(this.players[1 - seat].seat, "resign"); }
 
+  /** v1.1.0: the player left the placement screen for the harbor. Only while placing (no round played, nothing deployed):
+   *  the match is dropped with no result, so no loss, no rating change and no stats row. Returns an error string or null. */
+  leave(seat: number): string | null {
+    if (this.phase === "finished") return null;
+    if (this.phase !== "placing") return "match already started";
+    if (!this.players[seat] || this.players[seat].isAI) return "bad seat";
+    this.log(`[${this.id}] seat ${seat} left during placement; dropped (not recorded)`);
+    this.abandon();
+    return null;
+  }
+
   /** Server shutdown: stop everything without a result (not recorded, no rating change, onEnd not called). */
   abandon() {
     if (this.phase === "finished") return;

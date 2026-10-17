@@ -52,7 +52,7 @@ export class GameServer {
    *  socket that issued the nonce, so a SIWS proof may arrive on the NEXT socket. Accepted once, then consumed. */
   private recentNonces = new Map<string, number>();
   private usedNonces = new Map<string, number>();
-  static readonly NONCE_TTL_MS = 5 * 60_000;
+  static readonly NONCE_TTL_MS = 30 * 60_000;   // v1.1.0: 5 min was too short (seeker-test12: nonce issued at app open, signed 4m38s later, verified at 5m01s -> bad_signature). Still single use + wallet-bound.
   private conns = new Set<Conn>();
   /** Accounts deleted while a match was still finishing: their result row is scrubbed again after recordMatch. */
   private deleted = new Set<string>();
@@ -333,12 +333,23 @@ export class GameServer {
       case "resign":
         if (match) match.resign(c.seat!);
         return;
+      case "leave_match": {   // v1.1.0: HARBOR on the placement screen. Solo vs AI only; PvP must resign.
+        if (!match || (m.matchId && match.id !== m.matchId)) return this.out(c, { t: "match_left", matchId: m.matchId ?? null, recorded: false });
+        if (match.mode !== "solo_live" && match.mode !== "practice") return this.err(c, "not_allowed", "only a solo match can be left; resign instead", m.t);
+        const e = match.leave(c.seat!); if (e) return this.err(c, "too_late", e, m.t);
+        const id = match.id;
+        const s = this.sessions.get(c.playerId!); if (s?.matchId === id) s.matchId = undefined;
+        c.matchId = undefined; c.seat = undefined; this.matches.delete(id);
+        return this.out(c, { t: "match_left", matchId: id, recorded: false });
+      }
       case "get_state":
         if (!match) return this.err(c, "no_match", "no active match", m.t);
         return this.out(c, match.snapshot(c.seat!));
       case "check_name":
         return this.out(c, { t: "name_check", ...this.checkName(m.name, c.playerId) });
       case "set_profile": {
+        // a wallet's profile is the wallet owner's: only a SIWS-verified (or resumed verified) session may name it
+        if (c.wallet && this.o.requireWalletProof !== false && !c.verified) return this.err(c, "wallet_unverified", "sign in with your wallet to save its profile", m.t);
         const display = normalizeName(m.name), bad = validateName(display);
         if (bad) return this.err(c, bad, `name rejected: ${bad}`, m.t);
         const avatar = m.avatar ?? DEFAULT_AVATAR;

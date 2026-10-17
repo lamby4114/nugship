@@ -82,6 +82,7 @@ client                                   server
 | `aim` | `matchId`, `roundId`, `squares` int[] (≤ `maxShots`, unique, not already fired at), `fireNow?` bool | The latest aim before lock wins. `fireNow` only works in practice vs AI. |
 | `fired` | `matchId`, `roundId`, `signature` | Informational only. The referee always reads chain state. |
 | `resign` | `matchId` | |
+| `leave_match` | `matchId` | v1.1.0. This is HARBOR on the placement screen. It works only for a solo vs AI before the first round: the match is dropped with no result (no loss, no rating, no stats) and you get `match_left {recorded:false}`. After the fleets are committed you get `too_late`; in PvP you get `not_allowed`, so resign instead. `set_profile` on a wallet session also needs a SIWS-verified session (`wallet_unverified` otherwise). |
 | `get_state` | – | The server replies `match_state` (use after app resume). |
 | `ping` | `echo?` | The server replies `pong {serverTime, slot, echo}`. |
 
