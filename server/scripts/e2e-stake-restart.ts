@@ -30,5 +30,17 @@ const mf2 = await B.ask({ t: "start_solo", captain: "barnacle", mode: "live", st
 check(mf2.t === "match_found" && mf2.matchId !== mf.matchId, "new start_solo after relaunch: " + (mf2.t === "error" ? mf2.code : "new match " + mf2.matchId));
 const ack2 = await B.ask({ t: "place_fleet", matchId: mf2.matchId, layout, salt, commit }, "fleet_ack");
 check(ack2.stakeLamports === "5000000", "old-client place_fleet (no stake) keeps start stake=" + ack2.stakeLamports);
-await B.ask({ t: "resign" }, "match_end"); B.ws.close();
+await B.ask({ t: "resign" }, "match_end");
+// v1.1.0 HARBOR on the placement screen: leave_match drops the solo with no result and no lock
+const h0 = await (await fetch(URL.replace("wss://", "https://").replace("/ws", "/health"))).json() as any;
+const mf3 = await B.ask({ t: "start_solo", captain: "barnacle", mode: "live", stakeLamports: "1000000" }, "match_found");
+const left = await B.ask({ t: "leave_match", matchId: mf3.matchId }, "match_left");
+check(left.t === "match_left" && left.recorded === false, "leave_match during placement -> " + (left.t === "error" ? left.code : "match_left recorded=" + left.recorded));
+await new Promise((r) => setTimeout(r, 500));
+const h1 = await (await fetch(URL.replace("wss://", "https://").replace("/ws", "/health"))).json() as any;
+check(h1.db.matches === h0.db.matches, `no match row recorded (db.matches ${h0.db.matches} -> ${h1.db.matches})`);
+const mf4 = await B.ask({ t: "start_solo", captain: "barnacle", mode: "live", stakeLamports: "1000000" }, "match_found");
+check(mf4.t === "match_found", "next start_solo after leaving: " + (mf4.t === "error" ? mf4.code : "ok " + mf4.matchId));
+await B.ask({ t: "leave_match", matchId: mf4.matchId }, "match_left");
+B.ws.close();
 log(fail ? `${fail} FAILED` : "ALL PASS"); process.exit(fail ? 1 : 0);
