@@ -73,7 +73,20 @@ export class LiveRoundSource extends EventEmitter implements RoundSource {
     this.timers.forEach(clearInterval);
     for (const id of this.subs) { this.rpc.conn.removeSlotChangeListener(id).catch(() => {}); this.rpc.conn.removeAccountChangeListener(id).catch(() => {}); }
   }
-  private setSlot(s: number) { if (s > this._slot) { this._slot = s; this._slotAt = Date.now(); } }
+  /** Slot-rate sample (v1.1.0 timer fix): mainnet slot time drifts (~210-420 ms); refine _slotMs every >= 10 s of observed
+   *  slots so clock/turn_start deadlines don't run fast or slow for a whole round. */
+  private rateAt = 0; private rateSlot = 0;
+  private setSlot(s: number) {
+    if (s <= this._slot) return;
+    const now = Date.now();
+    this._slot = s; this._slotAt = now;
+    if (!this.rateAt) { this.rateAt = now; this.rateSlot = s; return; }
+    if (now - this.rateAt >= 10_000 && s > this.rateSlot) {
+      const ms = (now - this.rateAt) / (s - this.rateSlot);
+      if (ms >= 100 && ms <= 1000) this._slotMs = Math.round(this._slotMs * 0.7 + ms * 0.3);
+      this.rateAt = now; this.rateSlot = s;
+    }
+  }
   slot() { return this._slot + Math.min(8, Math.floor((Date.now() - this._slotAt) / this._slotMs)); }
   slotMs() { return this._slotMs; }
   current() { return this.win; }

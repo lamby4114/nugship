@@ -250,6 +250,8 @@ export class GameServer {
   private handle(c: Conn, m: any) {
     if (m?.t === "ping") return this.out(c, { t: "pong", serverTime: Date.now(), slot: this.o.source.slot(), echo: m.echo });
     if (m?.t === "hello") return this.hello(c, m);
+    // v1.1.0: fresh SIWS nonce on the SAME socket (the client used to reconnect for one, which briefly said hello as a guest)
+    if (m?.t === "refresh_nonce") { c.nonce = crypto.randomBytes(16).toString("hex"); this.rememberNonce(c.nonce); return this.out(c, { t: "nonce", nonce: c.nonce, serverTime: Date.now() }); }
     if (!c.playerId) return this.err(c, "not_authenticated", "send hello first", m?.t);
     const match = c.matchId ? this.matches.get(c.matchId) : undefined;
     switch (m.t) {
@@ -544,7 +546,8 @@ export class GameServer {
     for (const m of this.matches.values()) {
       if (m.phase !== "aiming" && m.phase !== "locked" && m.phase !== "settling") continue;
       const src = (m as any).source as RoundSource;
-      for (const p of m.players) p.send({ t: "clock", matchId: m.id, phase: m.phase, roundId: m.turn?.roundId, slot: src.slot(), lockSlot: m.turn?.lockSlot, endSlot: m.turn?.endSlot, slotMs: src.slotMs(), serverTime: Date.now() });
+      const tm = m.timing() ?? {};
+      for (const p of m.players) p.send({ t: "clock", matchId: m.id, phase: m.phase, roundId: m.turn?.roundId, slot: src.slot(), lockSlot: m.turn?.lockSlot, endSlot: m.turn?.endSlot, slotMs: src.slotMs(), serverTime: Date.now(), ...tm });
     }
   }
 }

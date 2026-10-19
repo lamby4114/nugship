@@ -49,6 +49,9 @@ export class Player {
 }
 
 export interface Turn { n: number; roundId: number; startSlot: number; endSlot: number; lockSlot: number; startedAt: number; }
+/** v1.1.0 timer: one server-side estimate per turn of when lock / round end happen (wall clock ms), smoothed so the
+ *  countdown the clients draw never jumps when a slot update arrives late or in a burst. */
+interface TurnClock { roundId: number; lockAt: number; endAt: number; }
 
 export interface ShotView { square: number; coord: string; hit: boolean; ship: ShipType | null; sunk: ShipType | null; crit: boolean; fx: Fx; oreGrams?: string; }
 export interface VolleyView {
@@ -158,10 +161,23 @@ export class Match {
     this.startTurn(w, lockSlot);
   }
 
+  private clock?: TurnClock;
+  /** Milliseconds until lock / round end for the current turn. Re-estimated from the slot clock on every call, but each
+   *  estimate only moves the stored deadline 20% of the way (EMA) - a single source of truth that drifts gently. */
+  timing(): { lockInMs: number; endInMs: number } | null {
+    const t = this.turn; if (!t) return null;
+    const now = Date.now(), slot = this.source.slot(), ms = this.source.slotMs();
+    const lockEst = now + (t.lockSlot - slot) * ms, endEst = now + (t.endSlot - slot) * ms;
+    if (!this.clock || this.clock.roundId !== t.roundId) this.clock = { roundId: t.roundId, lockAt: lockEst, endAt: endEst };
+    else { this.clock.lockAt += (lockEst - this.clock.lockAt) * 0.2; this.clock.endAt += (endEst - this.clock.endAt) * 0.2; }
+    return { lockInMs: Math.max(0, Math.round(this.clock.lockAt - now)), endInMs: Math.max(0, Math.round(this.clock.endAt - now)) };
+  }
+
   private startTurn(w: RoundWindow, lockSlot: number) {
     this.lastRoundUsed = w.roundId;
     this.turn = { n: this.turnsPlayed + 1, roundId: w.roundId, startSlot: w.startSlot, endSlot: w.endSlot, lockSlot, startedAt: Date.now() };
     this.phase = "aiming";
+    const tm = this.timing()!;
     for (const p of this.players) {
       p.aim = []; p.locked = null;
       p.maxShots = Math.max(1, Math.max(1, p.fleet!.afloat().length) + p.bonus + (p.captain?.bonusShots ?? 0));
@@ -169,7 +185,7 @@ export class Match {
     for (const p of this.players) {
       p.send({
         t: "turn_start", matchId: this.id, turn: this.turn.n, roundId: w.roundId, startSlot: w.startSlot, endSlot: w.endSlot, lockSlot,
-        slot: this.source.slot(), slotMs: this.source.slotMs(), serverTime: Date.now(), maxShots: p.maxShots, bonusShots: p.bonus, bonusReason: p.bonusReason,
+        slot: this.source.slot(), slotMs: this.source.slotMs(), serverTime: Date.now(), lockInMs: tm.lockInMs, endInMs: tm.endInMs, maxShots: p.maxShots, bonusShots: p.bonus, bonusReason: p.bonusReason,
         afloat: p.fleet!.afloat(), opponentAfloat: this.opp(p).fleet!.afloat().length,
         alreadyFired: [...p.knowledge.hits, ...p.knowledge.misses].sort((a, b) => a - b),
       });
@@ -216,12 +232,13 @@ export class Match {
   private lock() {
     const t = this.turn!;
     this.phase = "locked";
+    const tm = this.timing()!;
     for (const p of this.players) {
       p.locked = [...p.aim];
       p.send({
         t: "lock", matchId: this.id, roundId: t.roundId, squares: p.locked, coords: p.locked.map(squareToCoord), mask: squaresToMask(p.locked),
         amountLamports: this.stakeLamports.toString(), fire: p.onChain && p.locked.length > 0, fireMode: p.fireMode, endSlot: t.endSlot, slot: this.source.slot(),
-        serverPlaces: this.serverPlaces(p),
+        lockInMs: 0, endInMs: tm.endInMs, serverPlaces: this.serverPlaces(p),
       });
       if (this.serverPlaces(p)) void this.placeForPlayer(p, t.roundId, squaresToMask(p.locked ?? []), t.endSlot);
     }
@@ -421,7 +438,7 @@ export class Match {
     const p = this.players[seat], o = this.opp(p);
     return {
       t: "match_state", matchId: this.id, mode: this.mode, phase: this.phase, source: this.source.kind, stakeLamports: this.stakeLamports.toString(), seat,
-      turn: this.turn && { ...this.turn }, slot: this.source.slot(), slotMs: this.source.slotMs(), serverTime: Date.now(),
+      turn: this.turn && { ...this.turn }, slot: this.source.slot(), slotMs: this.source.slotMs(), serverTime: Date.now(), ...(this.timing() ?? {}),
       you: { name: p.name, fireMode: p.fireMode, layout: p.layout ?? null, salt: p.salt ?? null, commit: p.commit ?? null, afloat: p.fleet?.afloat() ?? [], hitsTaken: p.fleet ? [...p.fleet.hits] : [], aim: p.aim, locked: p.locked, maxShots: p.maxShots },
       opponent: { name: o.name, isAI: o.isAI, captain: o.captain?.id ?? null, commit: o.commit ?? null, afloatCount: o.fleet?.afloat().length ?? 3, sunk: o.fleet?.sunk() ?? [], sunkShips: p.knowledge.sunkShips.map((s) => ({ type: s.type, cells: [...s.cells] })), hitsOnThem: [...p.knowledge.hits], missesOnThem: [...p.knowledge.misses] },
       reveals: this.revealLog.length, result: this.result,
