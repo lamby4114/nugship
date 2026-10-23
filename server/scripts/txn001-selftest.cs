@@ -24,6 +24,10 @@ static class P {
     var tx=LiveTx.BuildUnsigned(Me,oldH,Dep(Me,5_000_000)); var w0=LiveTx.SerializeForSimulation(tx); LiveTx.Restamp(tx,newH); var w1=LiveTx.SerializeForSimulation(tx);
     Check("restamp swaps the hash in the wallet bytes", Has(w0,oldH)&&!Has(w1,oldH)&&Has(w1,newH)&&w0.Length==w1.Length&&w1[0]==1);
     Check("first deposit rent budget >= measured 5,943,440 (Miner+Automation)", 6_000_000UL>=5_943_440UL);
+    Check("session: decline", LiveTx.SessionReason("User declined the request")=="DECLINED IN WALLET");
+    Check("session: 30 s SDK timeout", LiveTx.SessionReason("Timeout or cancelled")=="WALLET TIMED OUT - TRY AGAIN");
+    Check("session: back-out before connect", LiveTx.SessionReason("Association aborted: returned to app before wallet websocket connected")=="WALLET CLOSED");
+    Check("session: unknown", LiveTx.SessionReason(null)=="WALLET ERROR");
     Check("tx fits in a packet", w1.Length<=1232);
     if(a.Length>0&&a[0]=="live"){
       var rpc=ClientFactory.GetClient("https://api.mainnet-beta.solana.com"); var payer=new PublicKey(a.Length>1?a[1]:"6TWMHcW3gGXRnzRoe6vTgENjJhCbTFApcA5yLEJJaBDh");
