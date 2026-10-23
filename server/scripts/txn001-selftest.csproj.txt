@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><LangVersion>9.0</LangVersion><Nullable>disable</Nullable><ImplicitUsings>disable</ImplicitUsings><DefineConstants>ORESEAS_SOLANA;ORESEAS_LIVE_ORE</DefineConstants><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
+<ItemGroup><Compile Include="/workspace/nugship-game/Assets/OreSeas/Scripts/Runtime/Ore/Chain/*.cs" /><Compile Include="Main.cs" />
+<Reference Include="lib/Solana.Unity.Rpc.dll" /><Reference Include="lib/Solana.Unity.Wallet.dll" /><Reference Include="lib/Chaos.NaCl.dll" /></ItemGroup>
+<ItemGroup>
+  <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+</ItemGroup></Project>
